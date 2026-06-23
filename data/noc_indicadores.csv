@@ -1,0 +1,73 @@
+noc,indicador,escala_sugerida
+Estado respiratorio: intercambio gaseoso,Saturación de oxígeno,1-5
+Estado respiratorio: intercambio gaseoso,Disnea,1-5
+Estado respiratorio: intercambio gaseoso,Coloración de piel y mucosas,1-5
+Estado respiratorio: ventilación,Frecuencia respiratoria,1-5
+Estado respiratorio: ventilación,Uso de músculos accesorios,1-5
+Estado respiratorio: permeabilidad de las vías respiratorias,Secreciones respiratorias,1-5
+Estado respiratorio: permeabilidad de las vías respiratorias,Tos eficaz,1-5
+Hidratación,Mucosas húmedas,1-5
+Hidratación,Diuresis adecuada,1-5
+Control del riesgo,Ausencia de signos de infección,1-5
+Control del riesgo,Aplica medidas preventivas,1-5
+Nivel del dolor,Intensidad referida del dolor,1-5
+Nivel del dolor,Respuesta a medidas analgésicas,1-5
+Control del dolor,Uso de medidas de alivio,1-5
+Termorregulación,Temperatura corporal,°C
+Integridad tisular: piel y membranas mucosas,Coloración de la piel,1-5
+Integridad tisular: piel y membranas mucosas,Presencia de lesiones,1-5
+Curación de la herida: por segunda intención,Exudado,1-5
+Curación de la herida: por segunda intención,Tejido de granulación,1-5
+Movilidad,Capacidad para cambiar de posición,1-5
+Movilidad,Transferencia segura,1-5
+Ambulación,Marcha segura,1-5
+Nivel de ansiedad,Inquietud,1-5
+Afrontamiento de problemas,Utiliza estrategias de afrontamiento,1-5
+Estado nutricional,Ingesta calórica,1-5
+Ingesta alimentaria,Tolerancia a la vía oral,1-5
+Eliminación intestinal,Frecuencia de evacuaciones,Registro
+Sueño,Horas de sueño,Registro
+Descanso,Descanso percibido,1-5
+Autocuidados: baño,Participa en el baño,1-5
+Autocuidados: higiene,Mantiene higiene corporal,1-5
+Estado neurológico,Nivel de conciencia,Glasgow
+Orientación cognitiva,Orientación en persona lugar y tiempo,1-5
+Conducta de prevención de caídas,Pide ayuda para movilizarse,1-5
+Conducta de prevención de caídas,Usa dispositivos de apoyo correctamente,1-5
+Estado respiratorio: permeabilidad de las vías respiratorias,Ruidos respiratorios,1-5
+Estado respiratorio: permeabilidad de las vías respiratorias,Capacidad para expectorar,1-5
+Severidad de la pérdida de sangre,Presencia de sangrado visible,Registro
+Severidad de la pérdida de sangre,Signos de hipovolemia,1-5
+Estado circulatorio,Frecuencia cardiaca,1-5
+Estado circulatorio,Presión arterial,1-5
+Control de náuseas y vómitos,Frecuencia de náuseas,1-5
+Control de náuseas y vómitos,Tolerancia oral,1-5
+Eliminación urinaria,Frecuencia urinaria,Registro
+Eliminación urinaria,Disuria,1-5
+Eliminación urinaria,Volumen urinario,Registro
+Confort físico,Malestar referido,1-5
+Nivel de glucemia,Glucosa capilar,mg/dL
+Nivel de glucemia,Signos de hipoglucemia,1-5
+Nivel de glucemia,Signos de hiperglucemia,1-5
+Nivel de fatiga,Cansancio referido,1-5
+Nivel de fatiga,Tolerancia al esfuerzo,1-5
+Tolerancia a la actividad,Disnea con actividad,1-5
+Tolerancia a la actividad,Respuesta cardiaca al esfuerzo,Registro
+Perfusión tisular periférica,Llenado capilar,Segundos
+Perfusión tisular periférica,Temperatura de extremidades,1-5
+Perfusión tisular periférica,Pulsos periféricos,1-5
+Estado de deglución,Tos durante alimentación,1-5
+Estado de deglución,Atragantamiento,1-5
+Estado de deglución,Manejo de secreciones,1-5
+Estado materno: anteparto,Presión arterial materna,1-5
+Estado materno: anteparto,Presencia de signos de alarma,1-5
+Estado fetal: anteparto,Movimientos fetales referidos,1-5
+Estado fetal: anteparto,Datos de bienestar fetal según valoración institucional,1-5
+Bienestar materno,Expresión de comodidad y seguridad,1-5
+Control del dolor,Intensidad del dolor referida,1-5
+Nivel del dolor,Expresión facial de dolor,1-5
+Severidad de la pérdida sanguínea,Cantidad de sangrado observado o referido,1-5
+Severidad de la pérdida sanguínea,Cambios en signos vitales,1-5
+Signos vitales,"Tendencia de PA, FC, FR y temperatura",1-5
+Nivel de ansiedad,Preocupación verbalizada,1-5
+Conocimiento: proceso de la enfermedad,Reconoce signos de alarma,1-5

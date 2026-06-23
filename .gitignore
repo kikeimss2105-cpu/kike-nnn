@@ -1,0 +1,32 @@
+# Entorno virtual — nunca al repo
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pycache/
+
+# Build artifacts / herramienta de migración
+migrate.py
+migrations/
+*.zip
+*_work/
+*_backup*/
+_backup_data/
+
+# Sistema
+.DS_Store
+*.swp
+*.swo
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Ledger local — no va al repo
+ledger.json

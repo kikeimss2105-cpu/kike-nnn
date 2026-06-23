@@ -1,0 +1,72 @@
+nic,actividad,tipo
+Oxigenoterapia,Verificar indicación o protocolo institucional antes de administrar oxígeno,Seguridad
+Oxigenoterapia,Vigilar SpO2 antes durante y después de la intervención,Vigilancia
+Monitorización respiratoria,Valorar frecuencia ritmo profundidad y esfuerzo respiratorio,Valoración
+Monitorización respiratoria,Vigilar signos de hipoxemia como cianosis inquietud confusión o diaforesis,Vigilancia
+Manejo de las vías aéreas,Colocar al paciente en posición que favorezca ventilación si no está contraindicado,Intervención
+Manejo de líquidos,Registrar ingresos egresos diuresis y balance hídrico,Vigilancia
+Protección contra infecciones,Realizar higiene de manos antes y después del contacto con el paciente,Seguridad
+Protección contra infecciones,Vigilar temperatura herida exudado olor dolor y cambios locales,Vigilancia
+Manejo del dolor,Valorar intensidad localización duración calidad y factores agravantes del dolor,Valoración
+Manejo del dolor,Aplicar medidas no farmacológicas si están indicadas y no contraindicadas,Intervención
+Administración de analgésicos,Verificar indicación dosis vía horario alergias y respuesta previa,Seguridad
+Tratamiento de la fiebre,Controlar temperatura y signos asociados,Valoración
+Cuidados de la piel,Inspeccionar piel en prominencias óseas pliegues zonas húmedas y áreas de presión,Valoración
+Cuidados de la piel,Mantener piel limpia seca e hidratada según necesidad,Intervención
+Cuidado de heridas,Valorar tamaño profundidad bordes exudado olor dolor y tejido presente,Valoración
+Cuidado de heridas,Realizar curación con técnica limpia o estéril según tipo de herida y protocolo,Intervención
+Ayuda con el autocuidado: transferencia,Valorar capacidad funcional y necesidad de apoyo para movilización,Valoración
+Terapia de ejercicios: ambulación,Estimular movilización progresiva según tolerancia e indicación,Intervención
+Disminución de la ansiedad,Escuchar preocupaciones y explicar procedimientos con lenguaje claro,Comunicación
+Apoyo emocional,Permitir expresión de emociones y validar preocupaciones del paciente,Comunicación
+Manejo de la nutrición,Valorar ingesta apetito peso tolerancia y factores que limitan alimentación,Valoración
+Asesoramiento nutricional,Explicar recomendaciones dietéticas acordes al plan terapéutico,Educación
+Manejo intestinal,Registrar frecuencia características de evacuación dolor esfuerzo y distensión,Vigilancia
+Mejorar el sueño,Identificar factores ambientales dolor ansiedad o interrupciones que alteren el sueño,Valoración
+Terapia de relajación,Guiar respiración lenta relajación o técnica breve de confort si procede,Intervención
+Ayuda con el autocuidado baño higiene,Valorar grado de dependencia y preservar privacidad dignidad y seguridad,Valoración
+Ayuda con el autocuidado baño higiene,Asistir baño higiene oral cuidado de piel y cambio de ropa según necesidad,Intervención
+Higiene,Mantener medidas de higiene corporal y ambiental para reducir riesgos,Intervención
+Precauciones para evitar la aspiración,Valorar nivel de conciencia tos deglución y manejo de secreciones,Valoración
+Prevención de caídas,Identificar factores de riesgo y aplicar medidas de seguridad según protocolo,Seguridad
+Ayuda con la deambulación,Acompañar deambulación y usar dispositivos de apoyo si están indicados,Intervención
+Monitorización neurológica,Valorar Glasgow pupilas fuerza respuesta verbal motora y cambios del estado mental,Valoración
+Manejo ambiental: seguridad,Reducir riesgos ambientales y favorecer orientación seguridad y acompañamiento,Intervención
+Prevención de úlceras por presión,Valorar riesgo de lesión por presión y registrar cambios en piel,Valoración
+Prevención de úlceras por presión,Realizar cambios de posición y descarga de presión según protocolo,Intervención
+Prevención de úlceras por presión,Controlar humedad fricción cizallamiento y estado nutricional,Vigilancia
+Precauciones ante hemorragias,Vigilar sangrado activo hematomas palidez taquicardia o hipotensión,Vigilancia
+Precauciones ante hemorragias,Evitar procedimientos traumáticos innecesarios y aplicar presión tras punciones,Seguridad
+Vigilancia,Observar cambios clínicos relevantes y reportar datos de deterioro,Vigilancia
+Manejo de las náuseas,Valorar intensidad frecuencia factores desencadenantes y presencia de vómito,Valoración
+Manejo de las náuseas,Ofrecer medidas de confort y dieta indicada según tolerancia,Intervención
+Manejo de la diarrea,Registrar frecuencia características de heces dolor y signos de deshidratación,Vigilancia
+Manejo de la diarrea,Favorecer hidratación y medidas dietéticas indicadas según protocolo,Intervención
+Manejo de la eliminación urinaria,Registrar patrón urinario volumen frecuencia dolor y características de la orina,Vigilancia
+Manejo de la eliminación urinaria,Favorecer privacidad posición adecuada e ingesta según indicación,Intervención
+Cuidados de la sonda urinaria,Mantener sistema cerrado bolsa por debajo de vejiga y técnica limpia según protocolo,Seguridad
+Cuidados de la sonda urinaria,Vigilar permeabilidad características de orina y signos de infección,Vigilancia
+Manejo de la glucemia,Vigilar glucosa capilar según indicación y signos de hipo o hiperglucemia,Vigilancia
+Manejo de la glucemia,Reportar valores fuera de rango y aplicar protocolo institucional,Seguridad
+Educación sobre dieta prescrita,Explicar horarios porciones alimentos indicados y signos de alarma,Educación
+Manejo de energía,Agrupar cuidados permitir periodos de descanso y valorar tolerancia,Intervención
+Manejo de energía,Priorizar actividades esenciales y vigilar fatiga disnea o mareo,Vigilancia
+Vigilancia de la piel,Valorar color temperatura edema llenado capilar pulsos y dolor,Vigilancia
+Monitorización de signos vitales,Medir y registrar TA FC FR temperatura SpO2 y cambios clínicos,Vigilancia
+Cuidados prenatales,"Valorar edad gestacional, signos vitales, sangrado, dolor, salida de líquido y movimientos fetales referidos",Valoración
+Cuidados prenatales,Educar sobre signos de alarma obstétrica y necesidad de atención inmediata,Educación
+Monitorización fetal,Registrar movimientos fetales referidos y datos disponibles de bienestar fetal según protocolo,Vigilancia
+Vigilancia del embarazo de alto riesgo,"Vigilar presión arterial, cefalea, fosfenos, acúfenos, epigastralgia, edema, sangrado y salida de líquido",Vigilancia
+Manejo del dolor del parto,"Valorar intensidad, frecuencia, duración de contracciones y respuesta a medidas no farmacológicas indicadas",Valoración
+Apoyo emocional,"Favorecer comunicación terapéutica, privacidad, acompañamiento permitido y reducción de ansiedad",Intervención
+Manejo del dolor,"Valorar localización, intensidad, duración, características y factores que aumentan o disminuyen el dolor.",Valoración
+Manejo del dolor,Favorecer posición cómoda y medidas no farmacológicas indicadas según tolerancia y protocolo.,Intervención
+Administración de analgésicos,"Administrar analgesia prescrita y vigilar respuesta, efectos adversos y signos de alarma.",Seguridad
+Disminución de la hemorragia,"Valorar cantidad, color y características del sangrado vaginal y registrar cambios.",Vigilancia
+Disminución de la hemorragia,"Vigilar signos vitales, palidez, diaforesis, dolor y datos de compromiso hemodinámico.",Seguridad
+Prevención del shock,"Vigilar PA, frecuencia cardiaca, llenado capilar, estado de conciencia y datos de hipoperfusión.",Vigilancia
+Prevención del shock,Activar protocolo institucional ante sangrado abundante o inestabilidad hemodinámica.,Seguridad
+Manejo de líquidos,Mantener acceso y manejo de líquidos según indicación y protocolo institucional.,Intervención
+Disminución de la ansiedad,"Proporcionar información clara, breve y honesta sobre el proceso de valoración y señales de alarma.",Comunicación
+Disminución de la ansiedad,"Favorecer acompañamiento, escucha activa y ambiente seguro.",Apoyo
+Enseñanza: proceso de enfermedad,Explicar signos de alarma obstétrica que requieren atención inmediata.,Educación

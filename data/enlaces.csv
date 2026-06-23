@@ -1,0 +1,66 @@
+nanda,noc,nic,prioridad
+Deterioro del intercambio gaseoso,Estado respiratorio: intercambio gaseoso,Oxigenoterapia,Alta
+Deterioro del intercambio gaseoso,Estado respiratorio: ventilación,Monitorización respiratoria,Alta
+Déficit de volumen de líquidos,Hidratación,Manejo de líquidos,Alta
+Riesgo de infección,Control del riesgo,Protección contra infecciones,Alta
+Dolor agudo,Nivel del dolor,Manejo del dolor,Alta
+Dolor agudo,Control del dolor,Administración de analgésicos,Media
+Hipertermia,Termorregulación,Tratamiento de la fiebre,Media
+Patrón respiratorio ineficaz,Estado respiratorio: ventilación,Monitorización respiratoria,Alta
+Patrón respiratorio ineficaz,Estado respiratorio: permeabilidad de las vías respiratorias,Manejo de las vías aéreas,Alta
+Deterioro de la integridad cutánea,Integridad tisular: piel y membranas mucosas,Cuidados de la piel,Alta
+Deterioro de la integridad cutánea,Curación de la herida: por segunda intención,Cuidado de heridas,Alta
+Deterioro de la movilidad física,Movilidad,Ayuda con el autocuidado: transferencia,Media
+Deterioro de la movilidad física,Ambulación,Terapia de ejercicios: ambulación,Media
+Ansiedad,Nivel de ansiedad,Disminución de la ansiedad,Media
+Ansiedad,Afrontamiento de problemas,Apoyo emocional,Media
+Desequilibrio nutricional inferior a las necesidades corporales,Estado nutricional,Manejo de la nutrición,Alta
+Desequilibrio nutricional inferior a las necesidades corporales,Ingesta alimentaria,Asesoramiento nutricional,Media
+Estreñimiento,Eliminación intestinal,Manejo intestinal,Media
+Estreñimiento,Hidratación,Manejo de líquidos,Media
+Insomnio,Sueño,Mejorar el sueño,Baja
+Insomnio,Descanso,Terapia de relajación,Baja
+Déficit de autocuidado baño higiene,Autocuidados: baño,Ayuda con el autocuidado baño higiene,Media
+Déficit de autocuidado baño higiene,Autocuidados: higiene,Higiene,Media
+Riesgo de aspiración,Estado respiratorio: permeabilidad de las vías respiratorias,Precauciones para evitar la aspiración,Alta
+Riesgo de aspiración,Control del riesgo,Manejo de las vías aéreas,Alta
+Riesgo de caídas,Conducta de prevención de caídas,Prevención de caídas,Alta
+Riesgo de caídas,Ambulación,Ayuda con la deambulación,Media
+Confusión aguda,Estado neurológico,Monitorización neurológica,Alta
+Confusión aguda,Orientación cognitiva,Manejo ambiental: seguridad,Media
+Limpieza ineficaz de las vías aéreas,Estado respiratorio: permeabilidad de las vías respiratorias,Manejo de las vías aéreas,Alta
+Limpieza ineficaz de las vías aéreas,Estado respiratorio: ventilación,Monitorización respiratoria,Alta
+Riesgo de lesión por presión,Integridad tisular: piel y membranas mucosas,Cuidados de la piel,Alta
+Riesgo de lesión por presión,Control del riesgo,Prevención de úlceras por presión,Alta
+Riesgo de sangrado,Severidad de la pérdida de sangre,Precauciones ante hemorragias,Alta
+Riesgo de sangrado,Estado circulatorio,Vigilancia,Alta
+Náuseas,Control de náuseas y vómitos,Manejo de las náuseas,Media
+Náuseas,Estado nutricional,Manejo de la nutrición,Media
+Diarrea,Eliminación intestinal,Manejo de la diarrea,Media
+Diarrea,Hidratación,Manejo de líquidos,Alta
+Deterioro de la eliminación urinaria,Eliminación urinaria,Manejo de la eliminación urinaria,Media
+Deterioro de la eliminación urinaria,Control del riesgo,Cuidados de la sonda urinaria,Media
+Retención urinaria,Eliminación urinaria,Manejo de la eliminación urinaria,Media
+Retención urinaria,Confort físico,Manejo del dolor,Media
+Riesgo de nivel de glucemia inestable,Nivel de glucemia,Manejo de la glucemia,Alta
+Riesgo de nivel de glucemia inestable,Control del riesgo,Educación sobre dieta prescrita,Media
+Fatiga,Nivel de fatiga,Manejo de energía,Media
+Fatiga,Descanso,Mejorar el sueño,Baja
+Intolerancia a la actividad,Tolerancia a la actividad,Manejo de energía,Media
+Intolerancia a la actividad,Estado respiratorio: ventilación,Monitorización respiratoria,Media
+Perfusión tisular periférica ineficaz,Perfusión tisular periférica,Vigilancia de la piel,Alta
+Perfusión tisular periférica ineficaz,Estado circulatorio,Monitorización de signos vitales,Alta
+Deterioro de la deglución,Estado de deglución,Precauciones para evitar la aspiración,Alta
+Deterioro de la deglución,Estado nutricional,Manejo de la nutrición,Alta
+Riesgo de alteración de la díada materno-fetal,Estado materno: anteparto,Cuidados prenatales,Alta
+Riesgo de alteración de la díada materno-fetal,Estado fetal: anteparto,Monitorización fetal,Alta
+Riesgo de alteración de la díada materno-fetal,Control del riesgo,Vigilancia del embarazo de alto riesgo,Alta
+Dolor de parto,Control del dolor,Manejo del dolor del parto,Media
+Dolor de parto,Bienestar materno,Apoyo emocional,Media
+Riesgo de sangrado,Severidad de la pérdida sanguínea,Disminución de la hemorragia,Alta
+Riesgo de sangrado,Estado materno: anteparto,Vigilancia del embarazo de alto riesgo,Alta
+Riesgo de shock,Estado circulatorio,Prevención del shock,Alta
+Riesgo de shock,Signos vitales,Manejo de líquidos,Alta
+Riesgo de infección materno-fetal,Control del riesgo,Protección contra infecciones,Alta
+Riesgo de infección materno-fetal,Estado fetal: anteparto,Vigilancia del embarazo de alto riesgo,Alta
+Ansiedad,Conocimiento: proceso de la enfermedad,Enseñanza: proceso de enfermedad,Media
