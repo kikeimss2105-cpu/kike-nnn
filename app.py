@@ -1064,17 +1064,22 @@ with tab_braden:
     st.header("3. Escalas clínicas")
     st.info(f"Perfil seleccionado: {tipo_paciente}. {recomendaciones_por_tipo(tipo_paciente)}")
     st.subheader("Módulo respiratorio avanzado")
+    respiratorio_valorado = st.toggle("✅ Incluir módulo respiratorio en la valoración", value=False,
+                                       help="Activa esta escala solo si valoraste SpO₂ y FR en el paciente.")
 
     col_r1, col_r2, col_r3 = st.columns(3)
 
     with col_r1:
-        spo2 = st.number_input("SpO₂ (%)", min_value=50, max_value=100, value=98, step=1)
+        spo2 = st.number_input("SpO₂ (%)", min_value=50, max_value=100, value=98, step=1,
+                                disabled=not respiratorio_valorado)
 
     with col_r2:
-        fr = st.number_input("Frecuencia respiratoria (rpm)", min_value=0, max_value=80, value=18, step=1)
+        fr = st.number_input("Frecuencia respiratoria (rpm)", min_value=0, max_value=80, value=18, step=1,
+                              disabled=not respiratorio_valorado)
 
     with col_r3:
-        oxigeno_suplementario = st.selectbox("Oxígeno suplementario", ["No", "Sí", "No especificado"])
+        oxigeno_suplementario = st.selectbox("Oxígeno suplementario", ["No", "Sí", "No especificado"],
+                                              disabled=not respiratorio_valorado)
 
     interpretacion_spo2 = interpretar_spo2(spo2)
     interpretacion_fr = interpretar_fr_por_tipo(fr, tipo_paciente)
@@ -1086,6 +1091,8 @@ with tab_braden:
     st.caption("Interpretación educativa general. Ajustar a edad, patología, altitud, protocolo institucional y contexto clínico.")
 
     st.subheader("Riesgo de lesiones por presión")
+    braden_valorado = st.toggle("✅ Incluir Braden en la valoración", value=False,
+                                 help="Activa solo si aplicaste la escala Braden al paciente.")
 
     col_b1, col_b2 = st.columns(2)
 
@@ -1132,11 +1139,16 @@ with tab_braden:
 """)
 
     st.subheader("Escala Visual Analógica del Dolor — EVA")
-    eva_dolor = st.slider("Intensidad del dolor", min_value=0, max_value=10, value=0, step=1)
+    eva_valorado = st.toggle("✅ Incluir EVA en la valoración", value=False,
+                              help="Activa solo si valoraste el dolor con EVA. EVA 0 sin activar = no valorado.")
+    eva_dolor = st.slider("Intensidad del dolor", min_value=0, max_value=10, value=0, step=1,
+                          disabled=not eva_valorado)
     interpretacion_eva = interpretar_eva(eva_dolor)
     st.info(f"EVA: {eva_dolor}/10 | {interpretacion_eva}")
 
     st.subheader("Escala de Glasgow — Estado neurológico")
+    glasgow_valorado = st.toggle("✅ Incluir Glasgow en la valoración", value=False,
+                                  help="Activa solo si evaluaste el estado neurológico con Glasgow.")
     col_g1, col_g2, col_g3 = st.columns(3)
 
     with col_g1:
@@ -1168,6 +1180,8 @@ with tab_braden:
     st.markdown("**Guía Glasgow:** 13-15 leve/conservado · 9-12 moderado · ≤8 grave")
 
     st.subheader("Tamizaje educativo de riesgo de caídas")
+    caidas_valorado = st.toggle("✅ Incluir tamizaje de caídas en la valoración", value=False,
+                                 help="Activa solo si realizaste el tamizaje de caídas al paciente.")
     col_c1, col_c2 = st.columns(2)
 
     with col_c1:
@@ -1301,49 +1315,53 @@ hallazgos_seleccionados = [h for h, v in checkboxes_valoracion.items() if v]
 
 # Hallazgos desde escalas
 hallazgos_braden = []
-if puntaje_braden <= 18:
-    hallazgos_braden += ["riesgo de lesión por presión", "inmovilidad", "deterioro de la integridad cutánea"]
-if braden_humedad <= 2:
-    hallazgos_braden += ["humedad", "piel dañada"]
-if braden_actividad <= 2:
-    hallazgos_braden += ["inmovilidad", "postración"]
-if braden_movilidad <= 2:
-    hallazgos_braden += ["inmovilidad", "dificultad para caminar"]
-if braden_nutricion <= 2:
-    hallazgos_braden += ["ingesta insuficiente", "nutrición comprometida"]
-if braden_friccion <= 2:
-    hallazgos_braden += ["fricción", "cizallamiento"]
+if braden_valorado:
+    if puntaje_braden <= 18:
+        hallazgos_braden += ["riesgo de lesión por presión", "inmovilidad", "deterioro de la integridad cutánea"]
+    if braden_humedad <= 2:
+        hallazgos_braden += ["humedad", "piel dañada"]
+    if braden_actividad <= 2:
+        hallazgos_braden += ["inmovilidad", "postración"]
+    if braden_movilidad <= 2:
+        hallazgos_braden += ["inmovilidad", "dificultad para caminar"]
+    if braden_nutricion <= 2:
+        hallazgos_braden += ["ingesta insuficiente", "nutrición comprometida"]
+    if braden_friccion <= 2:
+        hallazgos_braden += ["fricción", "cizallamiento"]
 
 hallazgos_eva = []
-if eva_dolor >= 4:
-    hallazgos_eva += ["dolor", "dolor agudo", "molestia"]
-if eva_dolor >= 7:
-    hallazgos_eva += ["dolor intenso", "prioridad alta", "punzada"]
+if eva_valorado:
+    if eva_dolor >= 4:
+        hallazgos_eva += ["dolor", "dolor agudo", "molestia"]
+    if eva_dolor >= 7:
+        hallazgos_eva += ["dolor intenso", "prioridad alta", "punzada"]
 
 hallazgos_glasgow = []
-if glasgow_total <= 14:
-    hallazgos_glasgow += ["confusión", "alteración del estado mental", "riesgo de caídas"]
-if glasgow_total <= 12:
-    hallazgos_glasgow += ["nivel de conciencia disminuido", "somnolencia", "deterioro neurológico", "dificultad para caminar"]
-if glasgow_total <= 8:
-    hallazgos_glasgow += ["riesgo de aspiración", "disminución del reflejo tusígeno", "respuesta verbal alterada",
-                           "respuesta motora alterada", "dependencia para higiene", "inmovilidad"]
+if glasgow_valorado:
+    if glasgow_total <= 14:
+        hallazgos_glasgow += ["confusión", "alteración del estado mental", "riesgo de caídas"]
+    if glasgow_total <= 12:
+        hallazgos_glasgow += ["nivel de conciencia disminuido", "somnolencia", "deterioro neurológico", "dificultad para caminar"]
+    if glasgow_total <= 8:
+        hallazgos_glasgow += ["riesgo de aspiración", "disminución del reflejo tusígeno", "respuesta verbal alterada",
+                               "respuesta motora alterada", "dependencia para higiene", "inmovilidad"]
 
 hallazgos_respiratorios = []
-if spo2 <= 95:
-    hallazgos_respiratorios.append("saturación baja")
-if spo2 <= 93:
-    hallazgos_respiratorios += ["hipoxia", "deterioro del intercambio gaseoso"]
-if spo2 <= 90:
-    hallazgos_respiratorios += ["cianosis", "oxigenación comprometida", "prioridad alta"]
-if fr > 20:
-    hallazgos_respiratorios += ["taquipnea", "patrón respiratorio ineficaz"]
-if fr > 30:
-    hallazgos_respiratorios += ["uso de músculos accesorios", "fatiga de músculos respiratorios"]
-if fr < 12:
-    hallazgos_respiratorios += ["bradipnea", "alteración respiratoria"]
-if oxigeno_suplementario == "Sí" and spo2 <= 95:
-    hallazgos_respiratorios += ["requiere oxígeno suplementario", "monitorización respiratoria"]
+if respiratorio_valorado:
+    if spo2 <= 95:
+        hallazgos_respiratorios.append("saturación baja")
+    if spo2 <= 93:
+        hallazgos_respiratorios += ["hipoxia", "deterioro del intercambio gaseoso"]
+    if spo2 <= 90:
+        hallazgos_respiratorios += ["cianosis", "oxigenación comprometida", "prioridad alta"]
+    if fr > 20:
+        hallazgos_respiratorios += ["taquipnea", "patrón respiratorio ineficaz"]
+    if fr > 30:
+        hallazgos_respiratorios += ["uso de músculos accesorios", "fatiga de músculos respiratorios"]
+    if fr < 12:
+        hallazgos_respiratorios += ["bradipnea", "alteración respiratoria"]
+    if oxigeno_suplementario == "Sí" and spo2 <= 95:
+        hallazgos_respiratorios += ["requiere oxígeno suplementario", "monitorización respiratoria"]
 
 hallazgos_caidas = []
 if puntaje_caidas >= 1:
@@ -1562,19 +1580,19 @@ with tab_resultados:
                 "Diagnóstico médico": dx_medico,
                 "Signos vitales": signos_vitales,
                 "Factores de riesgo": factores_riesgo,
-                "SpO2 (%)": spo2,
-                "Interpretación SpO2": interpretacion_spo2,
-                "Frecuencia respiratoria (rpm)": fr,
-                "Interpretación FR": interpretacion_fr,
-                "Oxígeno suplementario": oxigeno_suplementario,
-                "Puntaje Braden": puntaje_braden,
-                "Interpretación Braden": riesgo_braden,
-                "EVA dolor": eva_dolor,
-                "Interpretación EVA": interpretacion_eva,
-                "Glasgow total": glasgow_total,
-                "Interpretación Glasgow": interpretacion_glasgow,
-                "Puntaje riesgo de caídas": puntaje_caidas,
-                "Interpretación riesgo de caídas": riesgo_caidas,
+                "SpO2 (%)": spo2 if respiratorio_valorado else "No valorado",
+                "Interpretación SpO2": interpretacion_spo2 if respiratorio_valorado else "No valorado",
+                "Frecuencia respiratoria (rpm)": fr if respiratorio_valorado else "No valorado",
+                "Interpretación FR": interpretacion_fr if respiratorio_valorado else "No valorado",
+                "Oxígeno suplementario": oxigeno_suplementario if respiratorio_valorado else "No valorado",
+                "Puntaje Braden": puntaje_braden if braden_valorado else "No valorado",
+                "Interpretación Braden": riesgo_braden if braden_valorado else "No valorado",
+                "EVA dolor": eva_dolor if eva_valorado else "No valorado",
+                "Interpretación EVA": interpretacion_eva if eva_valorado else "No valorado",
+                "Glasgow total": glasgow_total if glasgow_valorado else "No valorado",
+                "Interpretación Glasgow": interpretacion_glasgow if glasgow_valorado else "No valorado",
+                "Puntaje riesgo de caídas": puntaje_caidas if caidas_valorado else "No valorado",
+                "Interpretación riesgo de caídas": riesgo_caidas if caidas_valorado else "No valorado",
                 "Semanas de gestación": semanas_gestacion if tipo_paciente == "Obstétrico" else "No aplica",
                 "Gestas": gestas if tipo_paciente == "Obstétrico" else "No aplica",
                 "PA obstétrica (mmHg)": f"{pas}/{pad}" if tipo_paciente == "Obstétrico" else "No aplica",
@@ -1586,11 +1604,20 @@ with tab_resultados:
                 "Datos clínicos texto libre": sintomas,
             }
 
+            # Valores efectivos: solo entra al motor de alertas si la escala fue valorada
+            _spo2_ef = spo2 if respiratorio_valorado else 98
+            _fr_ef = fr if respiratorio_valorado else 18
+            _eva_ef = eva_dolor if eva_valorado else 0
+            _braden_ef = puntaje_braden if braden_valorado else 23
+            _glasgow_ef = glasgow_total if glasgow_valorado else 15
+            _caidas_ef = puntaje_caidas if caidas_valorado else 0
+            _rcaidas_ef = riesgo_caidas if caidas_valorado else "No valorado"
+
             # Alertas clínicas generales
             alertas_clinicas = generar_alertas_clinicas(
-                spo2=spo2, fr=fr, eva_dolor=eva_dolor,
-                puntaje_braden=puntaje_braden, glasgow_total=glasgow_total,
-                puntaje_caidas=puntaje_caidas, riesgo_caidas=riesgo_caidas,
+                spo2=_spo2_ef, fr=_fr_ef, eva_dolor=_eva_ef,
+                puntaje_braden=_braden_ef, glasgow_total=_glasgow_ef,
+                puntaje_caidas=_caidas_ef, riesgo_caidas=_rcaidas_ef,
                 hallazgos_seleccionados=hallazgos_seleccionados
             )
 
