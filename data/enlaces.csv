@@ -96,3 +96,31 @@ Tensión del rol de cuidador,Bienestar del cuidador principal,Apoyo al cuidador 
 Tensión del rol de cuidador,Afrontamiento de problemas,Apoyo emocional,Media
 Riesgo de síndrome de desuso,Movilidad,Terapia de ejercicios: movilidad articular,Alta
 Riesgo de síndrome de desuso,Integridad tisular: piel y membranas mucosas,Cuidados de la piel,Media
+Riesgo de lesión materna,Control del riesgo,Vigilancia del embarazo de alto riesgo,Alta
+Riesgo de lesión materna,Estado materno: anteparto,Prevención de convulsiones,Alta
+Riesgo de lesión materna,Integridad tisular: piel y membranas mucosas,Manejo de la presión arterial,Alta
+Riesgo de inestabilidad de la presión arterial,Signos vitales,Manejo de la presión arterial,Alta
+Riesgo de inestabilidad de la presión arterial,Estado circulatorio,Vigilancia del embarazo de alto riesgo,Alta
+Disposición para mejorar el proceso de maternidad,Conocimiento: cuidados del lactante,Educación parental,Media
+Disposición para mejorar el proceso de maternidad,Vinculación,Fomento del apego,Media
+Disposición para mejorar el proceso de parto,Conocimiento: proceso del parto,Preparación al parto,Media
+Disposición para mejorar el proceso de parto,Participación en las decisiones,Apoyo emocional,Media
+Ventilación espontánea deteriorada,Estado respiratorio: ventilación,Soporte ventilatorio,Alta
+Ventilación espontánea deteriorada,Estado respiratorio: intercambio gaseoso,Monitorización respiratoria,Alta
+Comportamiento desorganizado del lactante,Organización neurológica del prematuro,Cuidados del lactante,Alta
+Comportamiento desorganizado del lactante,Estado neurológico,Cuidados del prematuro,Media
+Retraso en el desarrollo,Desarrollo infantil,Potenciación del desarrollo,Alta
+Retraso en el desarrollo,Estado nutricional del lactante,Vigilancia nutricional,Media
+Riesgo de desequilibrio de electrolitos,Equilibrio electrolítico y ácido-básico,Manejo de electrolitos,Alta
+Riesgo de desequilibrio de electrolitos,Hidratación,Manejo de líquidos,Alta
+Riesgo de desequilibrio del volumen de líquidos,Equilibrio de líquidos,Manejo de líquidos,Alta
+Riesgo de desequilibrio del volumen de líquidos,Signos vitales,Vigilancia,Alta
+Temor,Control del miedo,Disminución de la ansiedad,Alta
+Temor,Nivel de ansiedad,Apoyo emocional,Media
+Disminución del gasto cardíaco,Efectividad de la bomba cardíaca,Cuidados cardíacos,Alta
+Disminución del gasto cardíaco,Estado circulatorio,Manejo de líquidos,Alta
+Disminución del gasto cardíaco,Signos vitales,Monitorización hemodinámica,Alta
+Riesgo de disminución del gasto cardíaco,Estado circulatorio,Monitorización hemodinámica,Alta
+Riesgo de disminución del gasto cardíaco,Signos vitales,Vigilancia,Alta
+Riesgo de síndrome postraumático,Afrontamiento de problemas,Apoyo emocional,Alta
+Riesgo de síndrome postraumático,Salud emocional de los padres,Aumentar el afrontamiento,Media

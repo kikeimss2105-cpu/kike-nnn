@@ -109,3 +109,46 @@ Terapia de ejercicios: movilidad articular,Valorar rango de movimiento y fuerza 
 Terapia de ejercicios: movilidad articular,Cambios de posición programados para prevenir contracturas y lesiones por presión,Seguridad
 Potenciación de la disposición de aprendizaje,Evaluar disposición y capacidad del paciente para aprender en el momento actual,Valoración
 Potenciación de la disposición de aprendizaje,Adaptar la educación al nivel de comprensión idioma y estado emocional del paciente,Educación
+Prevención de convulsiones,"Monitorizar signos de inminencia de convulsión: cefalea intensa, fosfenos, hiperreflexia, epigastralgia",Vigilancia
+Prevención de convulsiones,Preparar y mantener equipo de aspiración y oxígeno disponible a pie de cama,Intervención
+Prevención de convulsiones,"Asegurar entorno seguro: barandales, sujeción blanda según protocolo institucional",Intervención
+Prevención de convulsiones,Administrar sulfato de magnesio según protocolo institucional para prevención de eclampsia,Colaboración
+Manejo de la presión arterial,Registrar PA cada 15-30 minutos en paciente con hipertensión severa o en trabajo de parto activo,Vigilancia
+Manejo de la presión arterial,"Administrar antihipertensivos según indicación médica y protocolo (nifedipino, hidralazina, labetalol)",Colaboración
+Manejo de la presión arterial,"Explicar a la paciente la importancia de comunicar cefalea, fosfenos o acúfenos inmediatamente",Educación
+Educación parental,"Enseñar técnica correcta de lactancia materna: posición, agarre y frecuencia",Educación
+Educación parental,"Orientar sobre cuidados básicos del recién nacido: higiene, termorregulación, signos de alarma",Educación
+Educación parental,Involucrar a la pareja o acompañante en el proceso de aprendizaje sobre cuidados neonatales,Apoyo
+Fomento del apego,Facilitar contacto piel a piel (método canguro) madre-recién nacido lo antes posible,Intervención
+Fomento del apego,Estimular la participación activa de la madre en los cuidados del recién nacido desde el primer momento,Intervención
+Fomento del apego,"Reforzar conductas de apego observadas: contacto visual, habla suave, respuesta al llanto",Apoyo
+Preparación al parto,Explicar las etapas del trabajo de parto y los cambios fisiológicos esperados en cada una,Educación
+Preparación al parto,Enseñar técnicas de respiración y relajación para el manejo del dolor durante las contracciones,Educación
+Preparación al parto,Resolver dudas e identificar temores sobre el proceso de parto para reducir la ansiedad anticipatoria,Apoyo
+Soporte ventilatorio,Colocar en posición prona o semifowler según tolerancia y protocolo para optimizar ventilación,Intervención
+Soporte ventilatorio,"Monitorizar saturación, frecuencia respiratoria y trabajo respiratorio cada 15-30 minutos",Vigilancia
+Soporte ventilatorio,"Preparar equipo de asistencia ventilatoria (CPAP, ventilación mecánica) según indicación y protocolo",Colaboración
+Cuidados del lactante,"Minimizar estímulos ambientales: ruido, luz intensa, manipulaciones innecesarias en UCIN",Intervención
+Cuidados del lactante,Agrupar procedimientos para respetar periodos de sueño y organización del lactante,Intervención
+Cuidados del lactante,"Valorar signos de estrés en el lactante: color, tono, estado de alerta, respuesta a estímulos",Vigilancia
+Cuidados del prematuro,"Aplicar método canguro para termorregulación, vínculo y estabilidad fisiológica",Intervención
+Cuidados del prematuro,"Vigilar temperatura, glucemia, saturación y tolerancia a la alimentación enteral",Vigilancia
+Cuidados del prematuro,Coordinar con trabajo social y psicología el acompañamiento a padres de prematuros,Colaboración
+Potenciación del desarrollo,Implementar actividades de estimulación temprana adecuadas a la edad gestacional corregida,Intervención
+Potenciación del desarrollo,Orientar a los padres sobre hitos del desarrollo y signos de alerta que requieren valoración,Educación
+Potenciación del desarrollo,Referir a rehabilitación pediátrica o estimulación temprana cuando se identifique retraso,Colaboración
+Manejo de electrolitos,"Vigilar resultados de laboratorio: sodio, potasio, cloro, magnesio según frecuencia indicada",Vigilancia
+Manejo de electrolitos,Registrar balance hídrico estricto: ingresos y egresos por turno con cálculo de diuresis horaria,Intervención
+Manejo de electrolitos,Administrar reposición electrolítica según indicación médica y vigilar respuesta clínica,Colaboración
+Cuidados cardíacos,"Monitorizar signos vitales, saturación y diuresis horaria cada hora en paciente con bajo gasto",Vigilancia
+Cuidados cardíacos,Colocar en posición Fowler o semifowler para reducir precarga y facilitar trabajo respiratorio,Intervención
+Cuidados cardíacos,"Preparar acceso venoso, administrar líquidos y fármacos según indicación y monitorizar respuesta",Colaboración
+Monitorización hemodinámica,"Valorar PA, FC, FR, saturación y llenado capilar de forma periódica y ante cualquier cambio clínico",Vigilancia
+Monitorización hemodinámica,Registrar diuresis horaria como indicador indirecto de perfusión renal (valor esperado ≥30 mL/h),Vigilancia
+Monitorización hemodinámica,"Informar de inmediato al médico ante deterioro hemodinámico: hipotensión, taquicardia, oliguria",Colaboración
+Disminución de la ansiedad,Permanecer con la paciente durante procedimientos o momentos de crisis para reducir sensación de abandono,Apoyo
+Disminución de la ansiedad,"Brindar información clara y adaptada sobre diagnóstico, procedimientos y evolución esperada",Educación
+Disminución de la ansiedad,Facilitar presencia de acompañante o familiar durante la atención cuando sea posible y seguro,Intervención
+Aumentar el afrontamiento,Escuchar activamente la experiencia de la paciente sin minimizar sus emociones ante el evento obstétrico,Apoyo
+Aumentar el afrontamiento,Informar sobre recursos de apoyo psicológico disponibles en la institución o en la red de salud,Educación
+Aumentar el afrontamiento,"Referir a trabajo social y/o psicología ante signos de respuesta postraumática: flashbacks, negación, llanto persistente",Colaboración
