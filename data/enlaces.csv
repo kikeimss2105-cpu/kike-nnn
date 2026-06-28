@@ -64,3 +64,35 @@ Riesgo de shock,Signos vitales,Manejo de líquidos,Alta
 Riesgo de infección materno-fetal,Control del riesgo,Protección contra infecciones,Alta
 Riesgo de infección materno-fetal,Estado fetal: anteparto,Vigilancia del embarazo de alto riesgo,Alta
 Ansiedad,Conocimiento: proceso de la enfermedad,Enseñanza: proceso de enfermedad,Media
+Riesgo de perfusión cerebral ineficaz,Perfusión tisular: cerebral,Monitorización neurológica,Alta
+Riesgo de perfusión cerebral ineficaz,Estado neurológico,Manejo de la presión arterial,Alta
+Riesgo de perfusión cerebral ineficaz,Control del riesgo,Vigilancia del embarazo de alto riesgo,Alta
+Déficit de conocimientos,Conocimiento: proceso de la enfermedad,Enseñanza: proceso de enfermedad,Alta
+Déficit de conocimientos,Conocimiento: régimen terapéutico,Enseñanza: procedimiento y tratamiento,Media
+Termorregulación ineficaz,Termorregulación: recién nacido,Regulación de la temperatura,Alta
+Termorregulación ineficaz,Estado respiratorio: ventilación,Monitorización de signos vitales,Media
+Hipotermia,Termorregulación,Regulación de la temperatura,Alta
+Hipotermia,Signos vitales,Monitorización de signos vitales,Alta
+Lactancia materna ineficaz,Establecimiento de la lactancia materna,Asesoramiento en lactancia materna,Alta
+Lactancia materna ineficaz,Conocimiento: lactancia materna,Educación para la salud,Media
+Riesgo de vinculación deteriorada,Vínculo paterno-filial,Fomento de la implicación familiar,Alta
+Riesgo de vinculación deteriorada,Rol parental,Apoyo emocional,Media
+Ictericia neonatal,Estado del recién nacido,Fototerapia: recién nacido,Alta
+Ictericia neonatal,Lactancia materna,Asesoramiento en lactancia materna,Media
+Duelo,Resolución del duelo,Apoyo emocional,Alta
+Duelo,Afrontamiento de problemas,Facilitar el duelo,Alta
+Afrontamiento ineficaz,Afrontamiento de problemas,Apoyo emocional,Alta
+Afrontamiento ineficaz,Toma de decisiones,Potenciación de la disposición de aprendizaje,Media
+Baja autoestima situacional,Autoestima,Potenciación de la autoestima,Alta
+Baja autoestima situacional,Afrontamiento de problemas,Apoyo emocional,Media
+Dolor crónico,Nivel del dolor,Manejo del dolor,Alta
+Dolor crónico,Control del dolor,Administración de analgésicos,Alta
+Dolor crónico,Calidad de vida,Educación para la salud,Media
+Deterioro de la comunicación verbal,Comunicación,Mejora de la comunicación: déficit del habla,Alta
+Deterioro de la comunicación verbal,Estado neurológico: conciencia,Monitorización neurológica,Alta
+Riesgo de deterioro de la integridad cutánea,Integridad tisular: piel y membranas mucosas,Cuidados de la piel,Alta
+Riesgo de deterioro de la integridad cutánea,Control del riesgo,Prevención de úlceras por presión,Alta
+Tensión del rol de cuidador,Bienestar del cuidador principal,Apoyo al cuidador principal,Alta
+Tensión del rol de cuidador,Afrontamiento de problemas,Apoyo emocional,Media
+Riesgo de síndrome de desuso,Movilidad,Terapia de ejercicios: movilidad articular,Alta
+Riesgo de síndrome de desuso,Integridad tisular: piel y membranas mucosas,Cuidados de la piel,Media

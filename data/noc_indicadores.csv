@@ -71,3 +71,34 @@ Severidad de la pérdida sanguínea,Cambios en signos vitales,1-5
 Signos vitales,"Tendencia de PA, FC, FR y temperatura",1-5
 Nivel de ansiedad,Preocupación verbalizada,1-5
 Conocimiento: proceso de la enfermedad,Reconoce signos de alarma,1-5
+Perfusión tisular: cerebral,Estado de conciencia,1-5
+Perfusión tisular: cerebral,Orientación en tiempo lugar y persona,1-5
+Perfusión tisular: cerebral,Respuesta pupilar,1-5
+Conocimiento: proceso de la enfermedad,Describe el proceso de la enfermedad,1-5
+Conocimiento: proceso de la enfermedad,Identifica signos y síntomas de alarma,1-5
+Conocimiento: régimen terapéutico,Describe medicamentos indicados,1-5
+Termorregulación: recién nacido,Temperatura corporal en rango normal,°C
+Termorregulación: recién nacido,Coloración de piel,1-5
+Signos vitales,Temperatura,°C
+Signos vitales,Frecuencia cardíaca,lpm
+Establecimiento de la lactancia materna,Técnica de agarre correcta,1-5
+Establecimiento de la lactancia materna,Producción adecuada de leche,1-5
+Vínculo paterno-filial,Contacto visual con el neonato,1-5
+Vínculo paterno-filial,Responde a señales del lactante,1-5
+Estado del recién nacido,Coloración de piel y escleróticas,1-5
+Estado del recién nacido,Nivel de bilirrubina,mg/dL
+Resolución del duelo,Expresa sentimientos relacionados con la pérdida,1-5
+Resolución del duelo,Mantiene relaciones interpersonales,1-5
+Autoestima,Verbalizaciones positivas sobre sí mismo,1-5
+Autoestima,Participa en decisiones de su cuidado,1-5
+Comunicación,Utiliza lenguaje no verbal para comunicarse,1-5
+Comunicación,Comprende mensajes dirigidos,1-5
+Bienestar del cuidador principal,Satisfacción con el rol de cuidador,1-5
+Bienestar del cuidador principal,Nivel de energía del cuidador,1-5
+Movilidad,Rango de movimiento articular,1-5
+Movilidad,Fuerza muscular,1-5
+Calidad de vida,Satisfacción con el funcionamiento físico,1-5
+Estado neurológico: conciencia,Apertura ocular,1-5
+Estado neurológico: conciencia,Respuesta motora,1-5
+Manejo de la presión arterial,Presión arterial sistólica,mmHg
+Manejo de la presión arterial,Presión arterial diastólica,mmHg
