@@ -1005,7 +1005,7 @@ with tab_valoracion:
         st.subheader("Hidratación")
         mucosas_secas = st.checkbox("Mucosas secas")
         sed = st.checkbox("Sed")
-        oliguria = st.checkbox("Oliguria")
+        oliguria = st.checkbox("Oliguria ⚠️ (incluye contexto obstétrico)")
         taquicardia = st.checkbox("Taquicardia")
         vomito = st.checkbox("Vómito")
         diarrea = st.checkbox("Diarrea")
@@ -1691,9 +1691,14 @@ with tab_resultados:
         else:
             st.subheader("📋 Resumen clínico educativo")
             resumen_clinico = generar_resumen_clinico(
-                df_resultados, puntaje_braden, riesgo_braden, eva_dolor, interpretacion_eva,
-                glasgow_total, interpretacion_glasgow, puntaje_caidas, riesgo_caidas,
-                spo2, interpretacion_spo2, fr, interpretacion_fr, hallazgos_seleccionados
+                df_resultados,
+                _braden_ef, riesgo_braden if braden_valorado else "No valorado",
+                _eva_ef, interpretacion_eva if eva_valorado else "No valorado",
+                _glasgow_ef, interpretacion_glasgow if glasgow_valorado else "No valorado",
+                _caidas_ef, _rcaidas_ef,
+                _spo2_ef, interpretacion_spo2 if respiratorio_valorado else "No valorado",
+                _fr_ef, interpretacion_fr if respiratorio_valorado else "No valorado",
+                hallazgos_seleccionados
             )
             st.info(resumen_clinico)
             datos_paciente["Resumen clínico educativo"] = resumen_clinico
