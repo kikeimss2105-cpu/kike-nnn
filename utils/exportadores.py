@@ -171,8 +171,9 @@ def agregar_plan_narrativo(document, df_resultados):
         agregar_tabla_diccionario(document, "Detalle del diagnóstico", datos)
 
 
-def generar_excel(df_resultados, datos_paciente):
+def generar_excel(df_resultados, datos_paciente, justificaciones=None):
     output = BytesIO()
+    justificaciones = justificaciones or {}
 
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         pd.DataFrame([datos_paciente]).to_excel(
@@ -198,6 +199,22 @@ def generar_excel(df_resultados, datos_paciente):
             index=False,
             sheet_name="Plan NNN completo"
         )
+
+        # Hoja de justificaciones clínicas
+        if justificaciones:
+            filas_justif = []
+            for dx, data in justificaciones.items():
+                filas_justif.append({
+                    "Diagnóstico NANDA": dx,
+                    "Decisión": data.get("decision", ""),
+                    "Confianza": data.get("confianza", ""),
+                    "Jerarquía": data.get("jerarquia", ""),
+                    "Puntaje": data.get("puntaje", ""),
+                    "Criterios seleccionados": "; ".join(data.get("criterios", [])),
+                    "Justificación clínica": data.get("justificacion", ""),
+                })
+            df_justif = pd.DataFrame(filas_justif)
+            df_justif.to_excel(writer, index=False, sheet_name="Justificación clínica")
 
         glosario = pd.DataFrame([
             {"Elemento": "NANDA", "Descripción": "Taxonomía diagnóstica de enfermería."},
@@ -228,7 +245,8 @@ def generar_excel(df_resultados, datos_paciente):
     return output
 
 
-def generar_word(df_resultados, datos_paciente):
+def generar_word(df_resultados, datos_paciente, justificaciones=None):
+    justificaciones = justificaciones or {}
     document = Document()
 
     section = document.sections[0]
@@ -283,7 +301,36 @@ def generar_word(df_resultados, datos_paciente):
     agregar_tabla_vinculacion_nnn(document, df_resultados)
     agregar_plan_narrativo(document, df_resultados)
 
-    document.add_heading("6. Recomendación académica", level=2)
+    # Sección 6: Razonamiento clínico del estudiante
+    document.add_heading("6. Razonamiento clínico del estudiante", level=2)
+    if justificaciones:
+        aceptados = {k: v for k, v in justificaciones.items() if v["decision"] == "Aceptado"}
+        rechazados = {k: v for k, v in justificaciones.items() if v["decision"] == "Rechazado"}
+
+        resumen_razon = {
+            "Diagnósticos aceptados": len(aceptados),
+            "Diagnósticos rechazados": len(rechazados),
+            "Diagnósticos sin decidir": len(df_resultados) - len(aceptados) - len(rechazados),
+        }
+        agregar_tabla_diccionario(document, "Resumen de decisiones", resumen_razon)
+
+        for dx, data in justificaciones.items():
+            document.add_heading(dx, level=3)
+            datos_justif = {
+                "Decisión": data.get("decision", ""),
+                "Confianza": data.get("confianza", ""),
+                "Jerarquía": data.get("jerarquia", ""),
+                "Criterios aplicados": "; ".join(data.get("criterios", [])) if data.get("criterios") else "No especificados",
+                "Justificación clínica": data.get("justificacion", ""),
+            }
+            agregar_tabla_diccionario(document, "Justificación", datos_justif)
+    else:
+        document.add_paragraph(
+            "El estudiante no registró justificaciones clínicas en esta sesión. "
+            "Para activar este módulo, usa la sección '🎓 Razonamiento clínico' en la pestaña de Resultados."
+        )
+
+    document.add_heading("7. Recomendación académica", level=2)
     document.add_paragraph(
         "El estudiante debe contrastar los diagnósticos sugeridos con la valoración completa, "
         "la taxonomía NANDA-I vigente, las clasificaciones NOC/NIC, el expediente clínico, "
