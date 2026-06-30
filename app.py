@@ -24,7 +24,7 @@ def _mostrar_disclaimer():
     </style>
     """, unsafe_allow_html=True)
 
-    st.image("https://img.shields.io/badge/KIKE--NNN-v18.1-blue?style=flat-square", width=160)
+    st.image("https://img.shields.io/badge/KIKE--NNN-v19-blue?style=flat-square", width=160)
     st.markdown("## ⚕️ Aviso de uso obligatorio")
 
     st.markdown("""
@@ -62,9 +62,6 @@ _mostrar_disclaimer()
 
 st.title("🩺 KIKE-NNN | Sistema educativo NANDA-NIC-NOC")
 st.subheader("Motor de razonamiento clínico con perfil de paciente y módulo obstétrico ajustado")
-
-st.sidebar.success("KIKE-NNN v18.1 | Ajuste fino obstétrico")
-st.sidebar.info("Rutas: hipertensiva, RPM/infección, dolor obstétrico, hemorrágica y bienestar fetal.")
 
 
 # =========================
@@ -951,7 +948,7 @@ def alertas_a_texto(alertas):
 # =========================
 
 with st.sidebar:
-    st.success("KIKE-NNN v18.1 | Ajuste fino obstétrico")
+    st.success("KIKE-NNN v19 | Justificación clínica + 60 dx NANDA")
     st.info("Rutas: hipertensiva, RPM/infección, dolor obstétrico, hemorrágica y bienestar fetal.")
     st.markdown("---")
     st.caption("⚕️ Herramienta educativa — no uso clínico directo")
@@ -1557,7 +1554,7 @@ with st.sidebar:
     else:
         st.success("Sin alertas críticas previas")
     st.markdown("---")
-    st.caption("v18.1 | Leininger · Xalapa, Ver.")
+    st.caption("v19 | Leininger · Xalapa, Ver.")
 
 
 # =========================
