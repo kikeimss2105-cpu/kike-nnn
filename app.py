@@ -86,6 +86,25 @@ def cargar_datos():
 nanda_df, enlaces_df, noc_indicadores_df, nic_actividades_df, fundamentos_df, metas_df = cargar_datos()
 
 
+@st.cache_data
+def construir_criterios_nanda(nanda_df):
+    """Arma, por código NANDA, la lista de criterios clínicos (características
+    definitorias + factores relacionados) que el estudiante puede elegir como
+    sustento de su decisión en el módulo de razonamiento clínico."""
+    criterios = {}
+    for _, fila in nanda_df.iterrows():
+        opciones = []
+        for campo in ["caracteristicas", "relacionados"]:
+            valor = fila.get(campo, "")
+            if pd.notna(valor) and str(valor).strip():
+                opciones += [x.strip() for x in str(valor).split(";") if x.strip()]
+        criterios[fila["codigo"]] = sorted(set(opciones))
+    return criterios
+
+
+nanda_criterios = construir_criterios_nanda(nanda_df)
+
+
 # =========================
 # MOTOR DE PUNTUACIÓN
 # =========================
@@ -1568,7 +1587,6 @@ with tab_resultados:
             st.markdown("**Tab 3** — Escalas (Braden, EVA, Glasgow...)")
 
     if st.button("🩺 Generar Plan de Cuidados", type="primary"):
-        st.session_state.plan_generado = True
         with st.spinner("Analizando hallazgos y generando plan educativo..."):
             texto_estructurado = " ".join(hallazgos_seleccionados)
             texto_clinico = f"{tipo_paciente} {dx_medico} {signos_vitales} {factores_riesgo} {sintomas} {texto_estructurado}"
@@ -1650,6 +1668,31 @@ with tab_resultados:
             df_resultados = buscar_diagnosticos(texto_clinico)
             df_resultados = enriquecer_plan(df_resultados)
 
+        # Persistimos todo en session_state: sin esto, cualquier interacción
+        # posterior (escribir una justificación, mover un toggle) reinicia
+        # st.button a False y todo este resultado desaparecía de pantalla.
+        st.session_state.plan_generado = True
+        st.session_state.df_resultados = df_resultados
+        st.session_state.datos_paciente = datos_paciente
+        st.session_state.alertas_clinicas = alertas_clinicas
+        # Nuevo plan generado: limpiamos justificaciones de un caso anterior
+        st.session_state.justificaciones = {}
+
+    if st.session_state.get("plan_generado"):
+        df_resultados = st.session_state.df_resultados
+        datos_paciente = st.session_state.datos_paciente
+        alertas_clinicas = st.session_state.alertas_clinicas
+
+        # Valores efectivos recalculados (cambian si el estudiante ajusta una
+        # escala después de generar el plan, sin tener que volver a generarlo)
+        _spo2_ef = spo2 if respiratorio_valorado else 98
+        _fr_ef = fr if respiratorio_valorado else 18
+        _eva_ef = eva_dolor if eva_valorado else 0
+        _braden_ef = puntaje_braden if braden_valorado else 23
+        _glasgow_ef = glasgow_total if glasgow_valorado else 15
+        _caidas_ef = puntaje_caidas if caidas_valorado else 0
+        _rcaidas_ef = riesgo_caidas if caidas_valorado else "No valorado"
+
         # =========================
         # MÉTRICAS RÁPIDAS
         # =========================
@@ -1726,18 +1769,82 @@ with tab_resultados:
             st.markdown("---")
 
             # =========================
+            # 🎓 RAZONAMIENTO CLÍNICO — MÓDULO DE JUSTIFICACIÓN
+            # =========================
+            st.subheader("🎓 Razonamiento clínico — acepta o rechaza cada diagnóstico")
+            st.caption(
+                "Por cada diagnóstico sugerido decide si lo aceptas o lo rechazas para "
+                "este caso y argumenta tu decisión. Esto es lo que se evalúa: no el "
+                "diagnóstico en sí, sino el razonamiento detrás de tu decisión."
+            )
+
+            if "justificaciones" not in st.session_state:
+                st.session_state.justificaciones = {}
+
+            for _, fila in df_resultados.iterrows():
+                nanda_nombre = fila["NANDA"]
+                codigo_dx = fila["Código"]
+                criterios_dx = nanda_criterios.get(codigo_dx, [])
+                key_base = f"justif_{codigo_dx}"
+
+                with st.expander(f"🧩 {nanda_nombre} — {fila['Confianza']} ({fila['Jerarquía']})"):
+                    decision = st.radio(
+                        "¿Aceptas este diagnóstico para este caso?",
+                        ["Sin decidir", "Aceptado", "Rechazado"],
+                        key=f"{key_base}_decision",
+                        horizontal=True
+                    )
+
+                    if criterios_dx:
+                        criterios_sel = st.multiselect(
+                            "Criterios clínicos que sostienen tu decisión "
+                            "(características definitorias / factores relacionados)",
+                            options=criterios_dx,
+                            key=f"{key_base}_criterios"
+                        )
+                    else:
+                        criterios_sel = []
+                        st.caption("Este diagnóstico no tiene criterios catalogados; argumenta solo en el texto libre.")
+
+                    texto_justif = st.text_area(
+                        "Justificación clínica, en tus propias palabras",
+                        key=f"{key_base}_texto",
+                        placeholder="Explica por qué aceptas o rechazas este diagnóstico con base en los datos de este caso..."
+                    )
+
+                    st.session_state.justificaciones[nanda_nombre] = {
+                        "decision": decision,
+                        "confianza": fila["Confianza"],
+                        "jerarquia": fila["Jerarquía"],
+                        "puntaje": fila["Puntaje"],
+                        "criterios": criterios_sel,
+                        "justificacion": texto_justif,
+                    }
+
+            justificaciones_actuales = st.session_state.justificaciones
+            n_aceptados = len([v for v in justificaciones_actuales.values() if v["decision"] == "Aceptado"])
+            n_rechazados = len([v for v in justificaciones_actuales.values() if v["decision"] == "Rechazado"])
+            n_pendientes = len(df_resultados) - n_aceptados - n_rechazados
+            if n_pendientes > 0:
+                st.warning(f"Te faltan {n_pendientes} diagnóstico(s) por decidir y argumentar antes de exportar el caso completo.")
+            else:
+                st.success(f"Decidiste y argumentaste los {len(df_resultados)} diagnósticos: {n_aceptados} aceptado(s), {n_rechazados} rechazado(s).")
+
+            st.markdown("---")
+
+            # =========================
             # EXPORTACIÓN
             # =========================
             st.subheader("📥 Exportar plan de cuidados")
-            excel_file = generar_excel(df_resultados, datos_paciente)
-            word_file = generar_word(df_resultados, datos_paciente)
+            excel_file = generar_excel(df_resultados, datos_paciente, justificaciones_actuales)
+            word_file = generar_word(df_resultados, datos_paciente, justificaciones_actuales)
 
             col_xl, col_wd = st.columns(2)
             with col_xl:
                 st.download_button(
                     label="📊 Descargar Excel",
                     data=excel_file,
-                    file_name="plan_cuidados_nnn_v18_1.xlsx",
+                    file_name="plan_cuidados_nnn_v19.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True
                 )
@@ -1745,7 +1852,7 @@ with tab_resultados:
                 st.download_button(
                     label="📄 Descargar Word",
                     data=word_file,
-                    file_name="plan_cuidados_nnn_v18_1.docx",
+                    file_name="plan_cuidados_nnn_v19.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     use_container_width=True
                 )
@@ -1784,4 +1891,4 @@ with tab_resultados:
                     st.caption(f"⚠️ {fila['Nota']}")
 
     st.markdown("---")
-    st.caption("KIKE-NNN v18.1 | Uso educativo exclusivo | Escuela de Enfermería y Obstetricia Leininger · Xalapa, Veracruz | No certificado por COFEPRIS")
+    st.caption("KIKE-NNN v19 | Uso educativo exclusivo | Escuela de Enfermería y Obstetricia Leininger · Xalapa, Veracruz | No certificado por COFEPRIS")
