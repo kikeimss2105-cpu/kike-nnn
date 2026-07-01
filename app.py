@@ -2,6 +2,18 @@ import streamlit as st
 import pandas as pd
 from utils.exportadores import generar_excel, generar_word
 
+from engine.carga import cargar_catalogos
+from engine.criterios import construir_criterios_nanda
+from engine.motor import buscar_diagnosticos
+from engine.plan import enriquecer_plan
+from engine.interpretaciones import (
+    interpretar_braden, interpretar_eva, interpretar_glasgow,
+    interpretar_riesgo_caidas, interpretar_spo2, interpretar_fr_adulto,
+    interpretar_fr_por_tipo, recomendaciones_por_tipo, interpretar_pa_obstetrica,
+)
+from engine.obstetrico import generar_alertas_obstetricas, evaluar_rutas_obstetricas
+from engine.resumen import generar_resumen_clinico, generar_alertas_clinicas, alertas_a_texto
+
 st.set_page_config(page_title="KIKE-NNN | Apoyo al razonamiento clínico", layout="wide")
 
 
@@ -24,7 +36,7 @@ def _mostrar_disclaimer():
     </style>
     """, unsafe_allow_html=True)
 
-    st.image("https://img.shields.io/badge/KIKE--NNN-v18.1-blue?style=flat-square", width=160)
+    st.image("https://img.shields.io/badge/KIKE--NNN-v19-blue?style=flat-square", width=160)
     st.markdown("## ⚕️ Aviso de uso obligatorio")
 
     st.markdown("""
@@ -63,27 +75,30 @@ _mostrar_disclaimer()
 st.title("🩺 KIKE-NNN | Sistema educativo NANDA-NIC-NOC")
 st.subheader("Motor de razonamiento clínico con perfil de paciente y módulo obstétrico ajustado")
 
-st.sidebar.success("KIKE-NNN v18.1 | Ajuste fino obstétrico")
-st.sidebar.info("Rutas: hipertensiva, RPM/infección, dolor obstétrico, hemorrágica y bienestar fetal.")
-
 
 # =========================
 # CARGA DE BASES CSV
 # =========================
 
+# =========================
+# CARGA DE BASES CSV (engine/carga.py)
+# =========================
+
 @st.cache_data
 def cargar_datos():
-    nanda = pd.read_csv("data/nanda.csv", dtype={"codigo": str})
-    enlaces = pd.read_csv("data/enlaces.csv")
-    noc_indicadores = pd.read_csv("data/noc_indicadores.csv")
-    nic_actividades = pd.read_csv("data/nic_actividades.csv")
-    fundamentos = pd.read_csv("data/fundamentos.csv")
-    metas = pd.read_csv("data/metas.csv")
-    nanda["codigo"] = nanda["codigo"].str.zfill(5)
-    return nanda, enlaces, noc_indicadores, nic_actividades, fundamentos, metas
+    cat = cargar_catalogos(data_dir="data")
+    return cat.nanda, cat.enlaces, cat.noc_indicadores, cat.nic_actividades, cat.fundamentos, cat.metas
 
 
 nanda_df, enlaces_df, noc_indicadores_df, nic_actividades_df, fundamentos_df, metas_df = cargar_datos()
+
+
+@st.cache_data
+def _construir_criterios_nanda_cacheado(nanda_df):
+    return construir_criterios_nanda(nanda_df)
+
+
+nanda_criterios = _construir_criterios_nanda_cacheado(nanda_df)
 
 
 # =========================
@@ -91,848 +106,12 @@ nanda_df, enlaces_df, noc_indicadores_df, nic_actividades_df, fundamentos_df, me
 # =========================
 
 
-def separar_lista(texto):
-    if pd.isna(texto):
-        return []
-    return [item.strip().lower() for item in str(texto).split(";") if item.strip()]
-
-
-def normalizar_texto(texto):
-    if texto is None:
-        return ""
-    texto = str(texto).lower()
-    reemplazos = {
-        "á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u",
-        "ü": "u", "ñ": "ñ"
-    }
-    for original, nuevo in reemplazos.items():
-        texto = texto.replace(original, nuevo)
-    return texto
-
-
-def calcular_puntaje(texto_clinico, fila):
-    """
-    Motor v17:
-    - Exige al menos una característica definitoria para diagnósticos reales.
-    - Pesa más lo definitorio que lo relacionado/asociado.
-    - Etiqueta coincidencias para explicar el razonamiento.
-    - Permite diagnósticos de riesgo cuando su etiqueta clave aparece en datos de riesgo.
-    """
-    texto = normalizar_texto(texto_clinico)
-
-    caracteristicas = separar_lista(fila["caracteristicas"])
-    relacionados = separar_lista(fila["relacionados"])
-    asociados = separar_lista(fila["asociados"])
-
-    caracteristicas_norm = [(x, normalizar_texto(x)) for x in caracteristicas]
-    relacionados_norm = [(x, normalizar_texto(x)) for x in relacionados]
-    asociados_norm = [(x, normalizar_texto(x)) for x in asociados]
-
-    coincidencias_caracteristicas = [original for original, norm in caracteristicas_norm if norm and norm in texto]
-    coincidencias_relacionados = [original for original, norm in relacionados_norm if norm and norm in texto]
-    coincidencias_asociados = [original for original, norm in asociados_norm if norm and norm in texto]
-
-    nombre_nanda = normalizar_texto(fila.get("nanda", ""))
-
-    # Para diagnósticos de riesgo, algunas bases usan la señal de riesgo como característica.
-    # Si el usuario ingresó literalmente el diagnóstico/riesgo, cuenta como dato definitorio educativo.
-    if not coincidencias_caracteristicas and "riesgo" in nombre_nanda:
-        etiqueta_riesgo = normalizar_texto(str(fila.get("nanda", "")))
-        if etiqueta_riesgo in texto:
-            coincidencias_caracteristicas.append(str(fila.get("nanda", "")).lower())
-
-    # Regla crítica: sin característica definitoria no se sugiere diagnóstico.
-    # Esto reduce falsos positivos por factores aislados.
-    if not coincidencias_caracteristicas:
-        return 0, []
-
-    puntaje = (
-        len(coincidencias_caracteristicas) * 4
-        + len(coincidencias_relacionados) * 2
-        + len(coincidencias_asociados) * 1
-    )
-
-    coincidencias_totales = (
-        [f"[DEF] {x}" for x in coincidencias_caracteristicas]
-        + [f"[REL] {x}" for x in coincidencias_relacionados]
-        + [f"[ASO] {x}" for x in coincidencias_asociados]
-    )
-
-    return puntaje, coincidencias_totales
-
-
-def nivel_confianza(puntaje):
-    if puntaje >= 12:
-        return "Alta"
-    elif puntaje >= 8:
-        return "Media"
-    elif puntaje > 0:
-        return "Baja"
-    return "Sin coincidencia"
-
-
-def buscar_diagnosticos(texto_clinico):
-    resultados = []
-
-    for _, fila in nanda_df.iterrows():
-        puntaje, coincidencias = calcular_puntaje(texto_clinico, fila)
-
-        if puntaje > 0:
-            enlaces = enlaces_df[enlaces_df["nanda"] == fila["nanda"]]
-
-            if enlaces.empty:
-                noc = "Sin NOC vinculado"
-                nic = "Sin NIC vinculado"
-                prioridad = "No definida"
-            else:
-                noc = " | ".join(enlaces["noc"].unique())
-                nic = " | ".join(enlaces["nic"].unique())
-                prioridad = " | ".join(enlaces["prioridad"].unique())
-
-            resultados.append({
-                "Código": fila["codigo"],
-                "Dominio": fila["dominio"],
-                "Clase": fila["clase"],
-                "NANDA": fila["nanda"],
-                "Definición": fila["definicion"],
-                "Coincidencias": ", ".join(coincidencias),
-                "Puntaje": puntaje,
-                "Confianza": nivel_confianza(puntaje),
-                "NOC sugerido": noc,
-                "NIC sugerido": nic,
-                "Prioridad": prioridad,
-                "Jerarquía": "Principal" if puntaje >= 9 else "Complementario",
-                "Nota": "Requiere validación clínica"
-            })
-
-    if not resultados:
-        return pd.DataFrame()
-
-    df = pd.DataFrame(resultados)
-    df = df.sort_values(by="Puntaje", ascending=False)
-    df = df[df["Puntaje"] >= 8]
-    df = df.head(10)
-
-    return df
-
-
-
-def obtener_indicadores_noc(noc_texto):
-    if not noc_texto or noc_texto == "Sin NOC vinculado":
-        return "Sin indicadores NOC vinculados"
-
-    nocs = [x.strip() for x in str(noc_texto).split("|")]
-    lineas = []
-
-    for noc in nocs:
-        sub = noc_indicadores_df[noc_indicadores_df["noc"] == noc]
-        if not sub.empty:
-            indicadores = [
-                f"- {row['indicador']} ({row['escala_sugerida']})"
-                for _, row in sub.iterrows()
-            ]
-            lineas.append(f"{noc}:\n" + "\n".join(indicadores))
-
-    return "\n\n".join(lineas) if lineas else "Sin indicadores NOC vinculados"
-
-
-def obtener_actividades_nic(nic_texto):
-    if not nic_texto or nic_texto == "Sin NIC vinculado":
-        return "Sin actividades NIC vinculadas"
-
-    nics = [x.strip() for x in str(nic_texto).split("|")]
-    lineas = []
-
-    for nic in nics:
-        sub = nic_actividades_df[nic_actividades_df["nic"] == nic]
-        if not sub.empty:
-            actividades = [
-                f"- [{row['tipo']}] {row['actividad']}"
-                for _, row in sub.iterrows()
-            ]
-            lineas.append(f"{nic}:\n" + "\n".join(actividades))
-
-    return "\n\n".join(lineas) if lineas else "Sin actividades NIC vinculadas"
-
-
-def obtener_fundamentos_nic(nic_texto):
-    if not nic_texto or nic_texto == "Sin NIC vinculado":
-        return "Sin fundamentos vinculados"
-
-    nics = [x.strip() for x in str(nic_texto).split("|")]
-    lineas = []
-
-    for nic in nics:
-        sub = fundamentos_df[fundamentos_df["nic"] == nic]
-        if not sub.empty:
-            for _, row in sub.iterrows():
-                lineas.append(f"- {nic}: {row['fundamento']}")
-
-    return "\n".join(lineas) if lineas else "Sin fundamentos vinculados"
-
-
-def obtener_meta_nanda(nanda_nombre):
-    sub = metas_df[metas_df["nanda"] == nanda_nombre]
-    if sub.empty:
-        return "Meta pendiente de individualizar según valoración clínica."
-    return str(sub.iloc[0]["meta"])
-
-
-def enriquecer_plan(df_resultados):
-    if df_resultados.empty:
-        return df_resultados
-
-    df = df_resultados.copy()
-    df["Meta esperada"] = df["NANDA"].apply(obtener_meta_nanda)
-    df["Indicadores NOC"] = df["NOC sugerido"].apply(obtener_indicadores_noc)
-    df["Actividades NIC"] = df["NIC sugerido"].apply(obtener_actividades_nic)
-    df["Fundamentos"] = df["NIC sugerido"].apply(obtener_fundamentos_nic)
-    return df
-
-
-def interpretar_braden(puntaje_braden):
-    if puntaje_braden <= 9:
-        return "Riesgo muy alto"
-    elif puntaje_braden <= 12:
-        return "Riesgo alto"
-    elif puntaje_braden <= 14:
-        return "Riesgo moderado"
-    elif puntaje_braden <= 18:
-        return "Riesgo leve"
-    return "Sin riesgo significativo"
-
-
-def interpretar_eva(eva):
-    if eva == 0:
-        return "Sin dolor"
-    elif eva <= 3:
-        return "Dolor leve"
-    elif eva <= 6:
-        return "Dolor moderado"
-    return "Dolor intenso"
-
-
-def interpretar_glasgow(glasgow):
-    if glasgow <= 8:
-        return "Compromiso neurológico grave"
-    elif glasgow <= 12:
-        return "Compromiso neurológico moderado"
-    elif glasgow <= 14:
-        return "Compromiso neurológico leve"
-    return "Estado neurológico aparentemente conservado"
-
-
-def interpretar_riesgo_caidas(puntaje):
-    if puntaje >= 6:
-        return "Riesgo alto de caídas"
-    elif puntaje >= 3:
-        return "Riesgo moderado de caídas"
-    elif puntaje >= 1:
-        return "Riesgo bajo de caídas"
-    return "Sin riesgo evidente por este tamizaje"
-
-
-def interpretar_spo2(spo2):
-    if spo2 <= 90:
-        return "Saturación críticamente baja"
-    elif spo2 <= 93:
-        return "Saturación baja"
-    elif spo2 <= 95:
-        return "Saturación en vigilancia"
-    return "Saturación dentro de rango esperado"
-
-
-def interpretar_fr_adulto(fr):
-    if fr < 12:
-        return "Bradipnea"
-    elif fr <= 20:
-        return "Frecuencia respiratoria dentro de rango adulto esperado"
-    elif fr <= 30:
-        return "Taquipnea"
-    return "Taquipnea marcada"
-
-
-def interpretar_fr_por_tipo(fr, tipo_paciente):
-    """Interpretación educativa de FR según perfil. Ajustar siempre a edad exacta y protocolo."""
-    if tipo_paciente == "Recién nacido":
-        if fr < 30:
-            return "Bradipnea para recién nacido"
-        elif fr <= 60:
-            return "Frecuencia respiratoria dentro de rango esperado para recién nacido"
-        return "Taquipnea en recién nacido"
-
-    if tipo_paciente == "Pediátrico":
-        if fr < 20:
-            return "FR baja o en vigilancia para paciente pediátrico"
-        elif fr <= 30:
-            return "Frecuencia respiratoria dentro de rango pediátrico general"
-        elif fr <= 40:
-            return "Taquipnea pediátrica"
-        return "Taquipnea pediátrica marcada"
-
-    if tipo_paciente == "Obstétrico":
-        if fr < 12:
-            return "Bradipnea"
-        elif fr <= 20:
-            return "FR dentro de rango adulto esperado en obstetricia"
-        elif fr <= 24:
-            return "FR en vigilancia obstétrica"
-        return "Taquipnea: valorar signos de alarma obstétrica"
-
-    if tipo_paciente == "Geriátrico":
-        if fr < 12:
-            return "Bradipnea"
-        elif fr <= 20:
-            return "FR dentro de rango esperado en adulto mayor"
-        elif fr <= 28:
-            return "Taquipnea en adulto mayor"
-        return "Taquipnea marcada en adulto mayor"
-
-    return interpretar_fr_adulto(fr)
-
-
-def recomendaciones_por_tipo(tipo_paciente):
-    recomendaciones = {
-        "Adulto": "Perfil adulto: Braden, EVA, Glasgow, caídas y respiratorio general disponibles.",
-        "Geriátrico": "Perfil geriátrico: prioriza caídas, Braden, movilidad, piel, nutrición e infección.",
-        "Pediátrico": "Perfil pediátrico: usar con cautela. Ajustar signos vitales a edad exacta y protocolo.",
-        "Obstétrico": "Perfil obstétrico: vigilar PA, sangrado, dolor, cefalea, fosfenos, edema, RPM y movimientos fetales según protocolo.",
-        "Recién nacido": "Perfil RN: requiere módulos específicos APGAR, Silverman-Andersen y Capurro para mayor precisión."
-    }
-    return recomendaciones.get(tipo_paciente, "Perfil no especificado.")
-
-
-
-def interpretar_pa_obstetrica(pas, pad, semanas_gestacion):
-    """Interpretación educativa. No diagnostica; orienta vigilancia obstétrica."""
-    if pas >= 160 or pad >= 110:
-        return "PA en rango severo: requiere valoración urgente según protocolo obstétrico"
-    if pas >= 140 or pad >= 90:
-        if semanas_gestacion >= 20:
-            return "PA elevada desde semana 20 o más: vigilar datos compatibles con trastorno hipertensivo del embarazo"
-        return "PA elevada en embarazo: requiere vigilancia y validación clínica"
-    if pas >= 130 or pad >= 80:
-        return "PA en vigilancia: repetir medición y valorar contexto clínico"
-    return "PA dentro de rango esperado por este tamizaje"
-
-
-def generar_alertas_obstetricas(
-    tipo_paciente,
-    semanas_gestacion,
-    pas,
-    pad,
-    temperatura,
-    cefalea_intensa,
-    fosfenos,
-    acufenos,
-    epigastralgia,
-    edema_cara_manos,
-    convulsiones,
-    sangrado_vaginal,
-    salida_liquido,
-    liquido_fetido,
-    liquido_verdoso,
-    dolor_abdominal_intenso,
-    contracciones_antes_termino,
-    disminucion_mov_fetales,
-    nausea_vomito_persistente,
-    disuria_obstetrica,
-):
-    alertas = []
-
-    if tipo_paciente != "Obstétrico":
-        return alertas
-
-    datos_neuro = cefalea_intensa or fosfenos or acufenos or epigastralgia or edema_cara_manos
-
-    if pas >= 160 or pad >= 110:
-        alertas.append({
-            "Nivel": "Alta",
-            "Área": "Obstétrico / hipertensión",
-            "Alerta": f"PA {pas}/{pad} mmHg en rango severo.",
-            "Acción sugerida": "Repetir medición si procede, mantener vigilancia, valorar datos de severidad y notificar de inmediato según protocolo."
-        })
-    elif pas >= 140 or pad >= 90:
-        nivel = "Alta" if semanas_gestacion >= 20 and datos_neuro else "Media"
-        alertas.append({
-            "Nivel": nivel,
-            "Área": "Obstétrico / hipertensión",
-            "Alerta": f"PA {pas}/{pad} mmHg elevada en paciente obstétrica.",
-            "Acción sugerida": "Valorar cefalea, fosfenos, acúfenos, epigastralgia, edema, proteinuria si está indicada y protocolo institucional."
-        })
-
-    if convulsiones:
-        alertas.append({
-            "Nivel": "Alta",
-            "Área": "Obstétrico / neurológico",
-            "Alerta": "Convulsiones reportadas en paciente obstétrica.",
-            "Acción sugerida": "Emergencia obstétrica: proteger vía aérea, seguridad de la paciente y activar protocolo institucional."
-        })
-
-    if cefalea_intensa and (fosfenos or acufenos or epigastralgia or edema_cara_manos):
-        alertas.append({
-            "Nivel": "Alta",
-            "Área": "Obstétrico / signos de alarma",
-            "Alerta": "Cefalea intensa asociada a síntomas visuales, auditivos, epigastralgia o edema.",
-            "Acción sugerida": "Valorar trastorno hipertensivo del embarazo y notificar según protocolo."
-        })
-
-    if sangrado_vaginal:
-        alertas.append({
-            "Nivel": "Alta",
-            "Área": "Obstétrico / sangrado",
-            "Alerta": "Sangrado vaginal durante el embarazo.",
-            "Acción sugerida": "Valorar cantidad, dolor, signos vitales, edad gestacional y activar ruta obstétrica según protocolo."
-        })
-
-    if salida_liquido:
-        nivel = "Alta" if semanas_gestacion < 37 else "Media"
-        alertas.append({
-            "Nivel": nivel,
-            "Área": "Obstétrico / salida de líquido",
-            "Alerta": "Salida de líquido transvaginal compatible con posible ruptura de membranas.",
-            "Acción sugerida": "Registrar hora, color, olor, cantidad, fiebre, dolor, movimientos fetales y referir/avisar según protocolo."
-        })
-
-    if liquido_fetido or liquido_verdoso or temperatura >= 38:
-        alertas.append({
-            "Nivel": "Alta",
-            "Área": "Obstétrico / infección o sufrimiento fetal",
-            "Alerta": "Fiebre, líquido fétido o líquido verdoso registrado.",
-            "Acción sugerida": "Vigilar signos de infección, estado materno-fetal y notificar según protocolo."
-        })
-
-    if dolor_abdominal_intenso:
-        alertas.append({
-            "Nivel": "Alta",
-            "Área": "Obstétrico / dolor abdominal",
-            "Alerta": "Dolor abdominal intenso en paciente obstétrica.",
-            "Acción sugerida": "Valorar sangrado, dinámica uterina, signos vitales, edad gestacional y protocolo de urgencia obstétrica."
-        })
-
-    if contracciones_antes_termino and semanas_gestacion < 37:
-        alertas.append({
-            "Nivel": "Media",
-            "Área": "Obstétrico / parto pretérmino",
-            "Alerta": "Contracciones antes de las 37 semanas.",
-            "Acción sugerida": "Valorar frecuencia, duración, dolor, salida de líquido, sangrado y protocolo de amenaza de parto pretérmino."
-        })
-
-    if disminucion_mov_fetales and semanas_gestacion >= 20:
-        alertas.append({
-            "Nivel": "Alta",
-            "Área": "Obstétrico / bienestar fetal",
-            "Alerta": "Disminución o ausencia de movimientos fetales referida.",
-            "Acción sugerida": "Valorar bienestar fetal y notificar según protocolo institucional."
-        })
-
-    if nausea_vomito_persistente:
-        alertas.append({
-            "Nivel": "Media",
-            "Área": "Obstétrico / hidratación",
-            "Alerta": "Náusea o vómito persistente.",
-            "Acción sugerida": "Valorar tolerancia oral, signos de deshidratación, peso, diuresis y necesidad de referencia."
-        })
-
-    if disuria_obstetrica:
-        alertas.append({
-            "Nivel": "Media",
-            "Área": "Obstétrico / urinario",
-            "Alerta": "Dolor o molestia al orinar durante el embarazo.",
-            "Acción sugerida": "Valorar datos urinarios, fiebre, dolor lumbar y seguimiento según protocolo."
-        })
-
-    return alertas
-
-
-def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=0, pa_sistolica=0, pa_diastolica=0,
-                              temperatura=36.5, cefalea=False, fosfenos=False, acufenos=False,
-                              epigastralgia=False, edema=False, convulsiones=False,
-                              sangrado=False, salida_liquido=False, liquido_fetido=False,
-                              liquido_verdoso=False, dolor_abdominal=False,
-                              contracciones=False, movimientos_fetales="No aplica / no valorado",
-                              hallazgos_detectados=None):
-    """
-    Clasifica señales obstétricas por ruta educativa.
-    v18.1:
-    - Separa dolor obstétrico de hemorragia.
-    - No activa ruta hemorrágica sin sangrado.
-    - No inyecta sangrado/shock si el usuario no marcó sangrado.
-    """
-    if tipo_paciente != "Obstétrico":
-        return [], "No aplica"
-
-    hallazgos_detectados = hallazgos_detectados or []
-    texto_hallazgos = " ".join([str(x).lower() for x in hallazgos_detectados])
-
-    def tiene(*terminos):
-        return any(str(t).lower() in texto_hallazgos for t in terminos)
-
-    def tiene_exacto(*terminos):
-        buscados = {str(t).lower().strip() for t in terminos}
-        return any(str(h).lower().strip() in buscados for h in hallazgos_detectados)
-
-    rutas = []
-    datos = []
-
-    # =========================
-    # RUTA HIPERTENSIVA / PREECLAMPSIA
-    # =========================
-    datos_hipertensivos = []
-
-    pa_elevada = semanas_gestacion >= 20 and (pa_sistolica >= 140 or pa_diastolica >= 90)
-    pa_severa = pa_sistolica >= 160 or pa_diastolica >= 110
-
-    if pa_elevada:
-        datos_hipertensivos.append(f"PA {pa_sistolica}/{pa_diastolica} desde semana 20 o más")
-    elif tiene("hipertensión", "hipertension", "preeclampsia"):
-        datos_hipertensivos.append("hallazgos compatibles con hipertensión/preeclampsia")
-
-    if pa_severa:
-        datos_hipertensivos.append("PA severa")
-    if cefalea or tiene("cefalea"):
-        datos_hipertensivos.append("cefalea")
-    if fosfenos or tiene("fosfenos", "visión borrosa", "vision borrosa"):
-        datos_hipertensivos.append("fosfenos/visión borrosa")
-    if acufenos or tiene("acúfenos", "acufenos"):
-        datos_hipertensivos.append("acúfenos")
-    if epigastralgia or tiene("epigastralgia", "dolor epigástrico", "dolor epigastrico"):
-        datos_hipertensivos.append("epigastralgia")
-    if edema or tiene("edema", "edema de cara", "edema de manos"):
-        datos_hipertensivos.append("edema cara/manos")
-
-    convulsiones_reales = bool(convulsiones) or tiene_exacto(
-        "convulsiones", "convulsión", "convulsion", "crisis convulsiva", "eclampsia"
-    )
-    if convulsiones_reales:
-        datos_hipertensivos.append("convulsiones")
-
-    if datos_hipertensivos:
-        nivel = "Crítica" if (pa_severa or convulsiones_reales) else "Alta"
-        datos_hipertensivos = list(dict.fromkeys(datos_hipertensivos))
-
-        rutas.append({
-            "Ruta": "Hipertensiva / preeclampsia",
-            "Nivel": nivel,
-            "Datos activadores": ", ".join(datos_hipertensivos),
-            "Acción educativa": "Valorar signos de severidad, proteinuria si procede, bienestar fetal y activar protocolo institucional."
-        })
-        datos.extend(["hipertensión", "preeclampsia", "signos de alarma obstétrica", "riesgo de alteración de la díada materno-fetal"])
-
-    # =========================
-    # RUTA RPM / INFECCIÓN
-    # =========================
-    datos_rpm = []
-    if salida_liquido or tiene("salida de líquido", "salida de liquido", "ruptura de membranas", "rpm"):
-        datos_rpm.append("salida de líquido transvaginal")
-    if liquido_fetido or tiene("líquido fétido", "liquido fetido", "mal olor"):
-        datos_rpm.append("líquido fétido")
-    if liquido_verdoso or tiene("líquido verdoso", "liquido verdoso", "meconio"):
-        datos_rpm.append("líquido verdoso")
-    if temperatura >= 38 or tiene("fiebre"):
-        datos_rpm.append(f"fiebre {temperatura}°C" if temperatura >= 38 else "fiebre")
-    if dolor_abdominal or tiene("dolor uterino", "dolor abdominal"):
-        datos_rpm.append("dolor abdominal/uterino")
-
-    if datos_rpm:
-        nivel = "Alta" if (
-            liquido_fetido or temperatura >= 38 or liquido_verdoso or
-            tiene("líquido fétido", "liquido fetido", "fiebre", "líquido verdoso", "liquido verdoso")
-        ) else "Media"
-        datos_rpm = list(dict.fromkeys(datos_rpm))
-        rutas.append({
-            "Ruta": "RPM / infección",
-            "Nivel": nivel,
-            "Datos activadores": ", ".join(datos_rpm),
-            "Acción educativa": "Vigilar temperatura, características del líquido, dolor, bienestar fetal y riesgo infeccioso según protocolo."
-        })
-        datos.extend([
-            "salida de líquido transvaginal",
-            "ruptura de membranas",
-            "riesgo de infección",
-            "vigilancia obstétrica",
-            "riesgo de infección materno-fetal"
-        ])
-
-    # =========================
-    # RUTA HEMORRÁGICA
-    # Solo si hay sangrado real o explícitamente detectado.
-    # =========================
-    datos_hemorragicos = []
-    sangrado_real = bool(sangrado) or tiene_exacto("sangrado vaginal", "hemorragia", "sangrado obstétrico")
-    if sangrado_real:
-        datos_hemorragicos.append("sangrado vaginal")
-        if dolor_abdominal or tiene("dolor abdominal", "dolor uterino"):
-            datos_hemorragicos.append("dolor abdominal")
-        if (contracciones and semanas_gestacion < 37) or tiene("contracciones antes de término", "contracciones antes de termino"):
-            datos_hemorragicos.append("contracciones antes de término")
-
-        datos_hemorragicos = list(dict.fromkeys(datos_hemorragicos))
-        rutas.append({
-            "Ruta": "Hemorrágica",
-            "Nivel": "Alta",
-            "Datos activadores": ", ".join(datos_hemorragicos),
-            "Acción educativa": "Valorar cantidad de sangrado, dolor, signos vitales, tono uterino y activar valoración obstétrica."
-        })
-        datos.extend([
-            "sangrado vaginal",
-            "riesgo de sangrado",
-            "signos de alarma obstétrica",
-            "riesgo de alteración de la díada materno-fetal"
-        ])
-
-    # =========================
-    # RUTA DOLOR OBSTÉTRICO / SIGNO DE ALARMA
-    # Dolor sin sangrado no debe contaminar como hemorragia.
-    # =========================
-    datos_dolor = []
-    if dolor_abdominal or tiene("dolor abdominal", "dolor uterino"):
-        datos_dolor.append("dolor abdominal/uterino")
-    if (contracciones and semanas_gestacion < 37) or tiene("contracciones antes de término", "contracciones antes de termino"):
-        datos_dolor.append("contracciones antes de término")
-
-    if datos_dolor and not sangrado_real:
-        datos_dolor = list(dict.fromkeys(datos_dolor))
-        rutas.append({
-            "Ruta": "Dolor obstétrico / signo de alarma",
-            "Nivel": "Alta",
-            "Datos activadores": ", ".join(datos_dolor),
-            "Acción educativa": "Valorar intensidad del dolor, dinámica uterina, signos vitales, edad gestacional y descartar sangrado o urgencia obstétrica según protocolo."
-        })
-        datos.extend([
-            "dolor abdominal",
-            "dolor abdominal intenso",
-            "dolor agudo",
-            "signos de alarma obstétrica",
-            "riesgo de alteración de la díada materno-fetal"
-        ])
-
-    # =========================
-    # RUTA BIENESTAR FETAL
-    # =========================
-    datos_fetales = []
-    if movimientos_fetales in ["Disminuidos", "Ausentes"]:
-        datos_fetales.append(f"movimientos fetales {movimientos_fetales.lower()}")
-    if tiene("disminución de movimientos fetales", "disminucion de movimientos fetales", "movimientos fetales disminuidos", "movimientos fetales ausentes"):
-        datos_fetales.append("movimientos fetales alterados")
-
-    if datos_fetales:
-        datos_fetales = list(dict.fromkeys(datos_fetales))
-        rutas.append({
-            "Ruta": "Bienestar fetal",
-            "Nivel": "Alta",
-            "Datos activadores": ", ".join(datos_fetales),
-            "Acción educativa": "Registrar movimientos fetales referidos y solicitar valoración de bienestar fetal según protocolo."
-        })
-        datos.extend([
-            "disminución de movimientos fetales",
-            "vigilancia fetal",
-            "estado fetal anteparto",
-            "riesgo de alteración de la díada materno-fetal"
-        ])
-
-    if not rutas:
-        return [], "Sin ruta obstétrica crítica activada con los datos ingresados."
-
-    resumen = []
-    for ruta in rutas:
-        resumen.append(
-            f"[{ruta['Nivel']}] {ruta['Ruta']}: {ruta['Datos activadores']}. "
-            f"Acción educativa: {ruta['Acción educativa']}"
-        )
-
-    datos = list(dict.fromkeys(datos))
-    return datos, "\n".join(resumen)
-
-
-def generar_resumen_clinico(df_resultados, puntaje_braden, riesgo_braden, eva_dolor, interpretacion_eva, glasgow_total, interpretacion_glasgow, puntaje_caidas, riesgo_caidas, spo2, interpretacion_spo2, fr, interpretacion_fr, hallazgos):
-    if df_resultados.empty:
-        return "No se encontraron diagnósticos suficientes. Se requiere valoración clínica completa."
-
-    principales = df_resultados[df_resultados["Jerarquía"] == "Principal"]["NANDA"].tolist()
-    complementarios = df_resultados[df_resultados["Jerarquía"] == "Complementario"]["NANDA"].tolist()
-
-    lineas = []
-
-    if principales:
-        lineas.append("Prioridad principal: " + ", ".join(principales) + ".")
-
-    if complementarios:
-        lineas.append("Diagnósticos complementarios a vigilar: " + ", ".join(complementarios) + ".")
-
-    lineas.append(f"Escala de Braden: {puntaje_braden} puntos, interpretación: {riesgo_braden}.")
-    lineas.append(f"EVA del dolor: {eva_dolor}/10, interpretación: {interpretacion_eva}.")
-    lineas.append(f"Glasgow: {glasgow_total}/15, interpretación: {interpretacion_glasgow}.")
-    lineas.append(f"Riesgo de caídas: {puntaje_caidas} puntos, interpretación: {riesgo_caidas}.")
-    lineas.append(f"Respiratorio: SpO₂ {spo2}%, {interpretacion_spo2}; FR {fr} rpm, {interpretacion_fr}.")
-
-    if "embarazo" in hallazgos or "paciente obstétrica" in hallazgos:
-        lineas.append("Obstétrico: vigilar presión arterial, cefalea, fosfenos, acúfenos, edema, sangrado, salida de líquido, fiebre, dolor abdominal y movimientos fetales según protocolo.")
-
-    if "Deterioro del intercambio gaseoso" in principales or "Deterioro del intercambio gaseoso" in complementarios:
-        lineas.append("Enfoque sugerido: valorar SpO₂, frecuencia respiratoria, coloración, disnea, uso de músculos accesorios y respuesta a oxígeno según indicación/protocolo.")
-
-    if "Patrón respiratorio ineficaz" in principales or "Patrón respiratorio ineficaz" in complementarios:
-        lineas.append("Enfoque sugerido: vigilar trabajo respiratorio, simetría torácica, tiraje, aleteo nasal, postura, fatiga y permeabilidad de vías aéreas.")
-
-    if "Dolor agudo" in principales or "Dolor agudo" in complementarios:
-        lineas.append("Enfoque sugerido: valorar localización, intensidad, duración, factores agravantes/aliviantes y respuesta a medidas analgésicas prescritas.")
-
-    if "Riesgo de aspiración" in principales or "Riesgo de aspiración" in complementarios:
-        lineas.append("Enfoque sugerido: vigilar nivel de conciencia, reflejo tusígeno, deglución, posición segura y datos de aspiración según protocolo.")
-
-    if "Riesgo de caídas" in principales or "Riesgo de caídas" in complementarios:
-        lineas.append("Enfoque sugerido: implementar medidas de seguridad, barandales según protocolo, acompañamiento, valoración del entorno y educación al cuidador.")
-
-    if "Confusión aguda" in principales or "Confusión aguda" in complementarios:
-        lineas.append("Enfoque sugerido: valorar orientación, cambios del estado mental, estímulos ambientales, seguridad y comunicación terapéutica.")
-
-    if "Deterioro de la integridad cutánea" in principales or "Deterioro de la integridad cutánea" in complementarios:
-        lineas.append("Enfoque sugerido: vigilancia de piel, prevención de lesiones por presión, control de humedad y cuidado de heridas.")
-
-    if "Riesgo de infección" in principales or "Riesgo de infección" in complementarios:
-        lineas.append("Enfoque sugerido: higiene de manos, técnica aséptica, vigilancia de exudado, fiebre, cambios locales y educación preventiva.")
-
-    if "Deterioro de la movilidad física" in principales or "Deterioro de la movilidad física" in complementarios:
-        lineas.append("Enfoque sugerido: movilización segura, cambios de posición, apoyo en transferencias y prevención de complicaciones por inmovilidad.")
-
-    if "Déficit de autocuidado baño higiene" in principales or "Déficit de autocuidado baño higiene" in complementarios:
-        lineas.append("Enfoque sugerido: apoyo parcial o total en higiene, conservación de dignidad, seguridad y educación al cuidador.")
-
-    if "Desequilibrio nutricional inferior a las necesidades corporales" in principales or "Desequilibrio nutricional inferior a las necesidades corporales" in complementarios:
-        lineas.append("Enfoque sugerido: valorar ingesta, peso, tolerancia, necesidades nutricionales y referencia según protocolo.")
-
-    return "\n".join(lineas)
-
-
-
-def generar_alertas_clinicas(
-    spo2,
-    fr,
-    eva_dolor,
-    puntaje_braden,
-    glasgow_total,
-    puntaje_caidas,
-    riesgo_caidas,
-    hallazgos_seleccionados
-):
-    alertas = []
-
-    if spo2 <= 90:
-        alertas.append({
-            "Nivel": "Alta",
-            "Área": "Respiratorio",
-            "Alerta": f"SpO₂ {spo2}%: saturación críticamente baja.",
-            "Acción sugerida": "Valorar dificultad respiratoria, coloración, trabajo respiratorio y notificar según protocolo institucional."
-        })
-    elif spo2 <= 93:
-        alertas.append({
-            "Nivel": "Media",
-            "Área": "Respiratorio",
-            "Alerta": f"SpO₂ {spo2}%: saturación baja.",
-            "Acción sugerida": "Vigilar tendencia, síntomas respiratorios y respuesta a intervenciones indicadas."
-        })
-
-    if fr > 30:
-        alertas.append({
-            "Nivel": "Alta",
-            "Área": "Respiratorio",
-            "Alerta": f"FR {fr} rpm: taquipnea marcada.",
-            "Acción sugerida": "Valorar trabajo respiratorio, fatiga, uso de músculos accesorios y signos de deterioro."
-        })
-    elif fr > 20:
-        alertas.append({
-            "Nivel": "Media",
-            "Área": "Respiratorio",
-            "Alerta": f"FR {fr} rpm: taquipnea.",
-            "Acción sugerida": "Vigilar patrón respiratorio, disnea y evolución clínica."
-        })
-
-    if glasgow_total <= 8:
-        alertas.append({
-            "Nivel": "Alta",
-            "Área": "Neurológico",
-            "Alerta": f"Glasgow {glasgow_total}/15: compromiso neurológico grave.",
-            "Acción sugerida": "Vigilar vía aérea, riesgo de aspiración, respuesta neurológica y actuar según protocolo."
-        })
-    elif glasgow_total <= 12:
-        alertas.append({
-            "Nivel": "Media",
-            "Área": "Neurológico",
-            "Alerta": f"Glasgow {glasgow_total}/15: compromiso neurológico moderado.",
-            "Acción sugerida": "Realizar vigilancia neurológica seriada y medidas de seguridad."
-        })
-
-    if eva_dolor >= 7:
-        alertas.append({
-            "Nivel": "Media",
-            "Área": "Dolor",
-            "Alerta": f"EVA {eva_dolor}/10: dolor intenso.",
-            "Acción sugerida": "Valorar características del dolor y respuesta a medidas indicadas."
-        })
-
-    if puntaje_braden <= 12:
-        alertas.append({
-            "Nivel": "Alta",
-            "Área": "Piel y seguridad",
-            "Alerta": f"Braden {puntaje_braden}: riesgo alto o muy alto de lesiones por presión.",
-            "Acción sugerida": "Implementar prevención de lesiones por presión, cambios de posición y vigilancia de piel."
-        })
-    elif puntaje_braden <= 18:
-        alertas.append({
-            "Nivel": "Media",
-            "Área": "Piel y seguridad",
-            "Alerta": f"Braden {puntaje_braden}: riesgo de lesión por presión.",
-            "Acción sugerida": "Reforzar inspección de piel, control de humedad y movilización."
-        })
-
-    if puntaje_caidas >= 6:
-        alertas.append({
-            "Nivel": "Alta",
-            "Área": "Seguridad",
-            "Alerta": f"Riesgo de caídas alto ({puntaje_caidas} puntos).",
-            "Acción sugerida": "Aplicar medidas preventivas de caídas y acompañamiento según protocolo."
-        })
-    elif puntaje_caidas >= 3:
-        alertas.append({
-            "Nivel": "Media",
-            "Área": "Seguridad",
-            "Alerta": f"Riesgo de caídas moderado ({puntaje_caidas} puntos).",
-            "Acción sugerida": "Vigilar deambulación, entorno seguro y necesidad de apoyo."
-        })
-
-    if "fiebre" in hallazgos_seleccionados and "herida" in hallazgos_seleccionados:
-        alertas.append({
-            "Nivel": "Media",
-            "Área": "Infección",
-            "Alerta": "Fiebre asociada a herida registrada.",
-            "Acción sugerida": "Vigilar signos locales y sistémicos de infección y reportar según protocolo."
-        })
-
-    return alertas
-
-
-def alertas_a_texto(alertas):
-    if not alertas:
-        return "Sin alertas educativas críticas detectadas con los datos ingresados."
-
-    lineas = []
-    for alerta in alertas:
-        lineas.append(
-            f"[{alerta['Nivel']}] {alerta['Área']}: {alerta['Alerta']} "
-            f"Acción sugerida: {alerta['Acción sugerida']}"
-        )
-
-    return "\n".join(lineas)
-
-
-
 # =========================
 # SIDEBAR — RESUMEN EN TIEMPO REAL
 # =========================
 
 with st.sidebar:
-    st.success("KIKE-NNN v18.1 | Ajuste fino obstétrico")
+    st.success("KIKE-NNN v19 | Justificación clínica + 60 dx NANDA")
     st.info("Rutas: hipertensiva, RPM/infección, dolor obstétrico, hemorrágica y bienestar fetal.")
     st.markdown("---")
     st.caption("⚕️ Herramienta educativa — no uso clínico directo")
@@ -1538,7 +717,7 @@ with st.sidebar:
     else:
         st.success("Sin alertas críticas previas")
     st.markdown("---")
-    st.caption("v18.1 | Leininger · Xalapa, Ver.")
+    st.caption("v19 | Leininger · Xalapa, Ver.")
 
 
 # =========================
@@ -1568,7 +747,6 @@ with tab_resultados:
             st.markdown("**Tab 3** — Escalas (Braden, EVA, Glasgow...)")
 
     if st.button("🩺 Generar Plan de Cuidados", type="primary"):
-        st.session_state.plan_generado = True
         with st.spinner("Analizando hallazgos y generando plan educativo..."):
             texto_estructurado = " ".join(hallazgos_seleccionados)
             texto_clinico = f"{tipo_paciente} {dx_medico} {signos_vitales} {factores_riesgo} {sintomas} {texto_estructurado}"
@@ -1647,8 +825,33 @@ with tab_resultados:
             datos_paciente["Alertas clínicas educativas"] = alertas_a_texto(alertas_clinicas)
 
             # Buscar diagnósticos
-            df_resultados = buscar_diagnosticos(texto_clinico)
-            df_resultados = enriquecer_plan(df_resultados)
+            df_resultados = buscar_diagnosticos(texto_clinico, nanda_df, enlaces_df)
+            df_resultados = enriquecer_plan(df_resultados, metas_df, noc_indicadores_df, nic_actividades_df, fundamentos_df)
+
+        # Persistimos todo en session_state: sin esto, cualquier interacción
+        # posterior (escribir una justificación, mover un toggle) reinicia
+        # st.button a False y todo este resultado desaparecía de pantalla.
+        st.session_state.plan_generado = True
+        st.session_state.df_resultados = df_resultados
+        st.session_state.datos_paciente = datos_paciente
+        st.session_state.alertas_clinicas = alertas_clinicas
+        # Nuevo plan generado: limpiamos justificaciones de un caso anterior
+        st.session_state.justificaciones = {}
+
+    if st.session_state.get("plan_generado"):
+        df_resultados = st.session_state.df_resultados
+        datos_paciente = st.session_state.datos_paciente
+        alertas_clinicas = st.session_state.alertas_clinicas
+
+        # Valores efectivos recalculados (cambian si el estudiante ajusta una
+        # escala después de generar el plan, sin tener que volver a generarlo)
+        _spo2_ef = spo2 if respiratorio_valorado else 98
+        _fr_ef = fr if respiratorio_valorado else 18
+        _eva_ef = eva_dolor if eva_valorado else 0
+        _braden_ef = puntaje_braden if braden_valorado else 23
+        _glasgow_ef = glasgow_total if glasgow_valorado else 15
+        _caidas_ef = puntaje_caidas if caidas_valorado else 0
+        _rcaidas_ef = riesgo_caidas if caidas_valorado else "No valorado"
 
         # =========================
         # MÉTRICAS RÁPIDAS
@@ -1726,18 +929,82 @@ with tab_resultados:
             st.markdown("---")
 
             # =========================
+            # 🎓 RAZONAMIENTO CLÍNICO — MÓDULO DE JUSTIFICACIÓN
+            # =========================
+            st.subheader("🎓 Razonamiento clínico — acepta o rechaza cada diagnóstico")
+            st.caption(
+                "Por cada diagnóstico sugerido decide si lo aceptas o lo rechazas para "
+                "este caso y argumenta tu decisión. Esto es lo que se evalúa: no el "
+                "diagnóstico en sí, sino el razonamiento detrás de tu decisión."
+            )
+
+            if "justificaciones" not in st.session_state:
+                st.session_state.justificaciones = {}
+
+            for _, fila in df_resultados.iterrows():
+                nanda_nombre = fila["NANDA"]
+                codigo_dx = fila["Código"]
+                criterios_dx = nanda_criterios.get(codigo_dx, [])
+                key_base = f"justif_{codigo_dx}"
+
+                with st.expander(f"🧩 {nanda_nombre} — {fila['Confianza']} ({fila['Jerarquía']})"):
+                    decision = st.radio(
+                        "¿Aceptas este diagnóstico para este caso?",
+                        ["Sin decidir", "Aceptado", "Rechazado"],
+                        key=f"{key_base}_decision",
+                        horizontal=True
+                    )
+
+                    if criterios_dx:
+                        criterios_sel = st.multiselect(
+                            "Criterios clínicos que sostienen tu decisión "
+                            "(características definitorias / factores relacionados)",
+                            options=criterios_dx,
+                            key=f"{key_base}_criterios"
+                        )
+                    else:
+                        criterios_sel = []
+                        st.caption("Este diagnóstico no tiene criterios catalogados; argumenta solo en el texto libre.")
+
+                    texto_justif = st.text_area(
+                        "Justificación clínica, en tus propias palabras",
+                        key=f"{key_base}_texto",
+                        placeholder="Explica por qué aceptas o rechazas este diagnóstico con base en los datos de este caso..."
+                    )
+
+                    st.session_state.justificaciones[nanda_nombre] = {
+                        "decision": decision,
+                        "confianza": fila["Confianza"],
+                        "jerarquia": fila["Jerarquía"],
+                        "puntaje": fila["Puntaje"],
+                        "criterios": criterios_sel,
+                        "justificacion": texto_justif,
+                    }
+
+            justificaciones_actuales = st.session_state.justificaciones
+            n_aceptados = len([v for v in justificaciones_actuales.values() if v["decision"] == "Aceptado"])
+            n_rechazados = len([v for v in justificaciones_actuales.values() if v["decision"] == "Rechazado"])
+            n_pendientes = len(df_resultados) - n_aceptados - n_rechazados
+            if n_pendientes > 0:
+                st.warning(f"Te faltan {n_pendientes} diagnóstico(s) por decidir y argumentar antes de exportar el caso completo.")
+            else:
+                st.success(f"Decidiste y argumentaste los {len(df_resultados)} diagnósticos: {n_aceptados} aceptado(s), {n_rechazados} rechazado(s).")
+
+            st.markdown("---")
+
+            # =========================
             # EXPORTACIÓN
             # =========================
             st.subheader("📥 Exportar plan de cuidados")
-            excel_file = generar_excel(df_resultados, datos_paciente)
-            word_file = generar_word(df_resultados, datos_paciente)
+            excel_file = generar_excel(df_resultados, datos_paciente, justificaciones_actuales)
+            word_file = generar_word(df_resultados, datos_paciente, justificaciones_actuales)
 
             col_xl, col_wd = st.columns(2)
             with col_xl:
                 st.download_button(
                     label="📊 Descargar Excel",
                     data=excel_file,
-                    file_name="plan_cuidados_nnn_v18_1.xlsx",
+                    file_name="plan_cuidados_nnn_v19.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True
                 )
@@ -1745,7 +1012,7 @@ with tab_resultados:
                 st.download_button(
                     label="📄 Descargar Word",
                     data=word_file,
-                    file_name="plan_cuidados_nnn_v18_1.docx",
+                    file_name="plan_cuidados_nnn_v19.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     use_container_width=True
                 )
@@ -1784,4 +1051,4 @@ with tab_resultados:
                     st.caption(f"⚠️ {fila['Nota']}")
 
     st.markdown("---")
-    st.caption("KIKE-NNN v18.1 | Uso educativo exclusivo | Escuela de Enfermería y Obstetricia Leininger · Xalapa, Veracruz | No certificado por COFEPRIS")
+    st.caption("KIKE-NNN v19 | Uso educativo exclusivo | Escuela de Enfermería y Obstetricia Leininger · Xalapa, Veracruz | No certificado por COFEPRIS")
