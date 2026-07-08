@@ -214,6 +214,91 @@ check("sin alertas -> lista vacía", [], sin_alertas)
 check("alertas_a_texto vacío", "Sin alertas educativas críticas detectadas con los datos ingresados.",
       alertas_a_texto(sin_alertas))
 
+
+# ---------------------------------------------------------------
+# Análisis docente (engine/docente.py) — reglas de señales y áreas
+# ---------------------------------------------------------------
+from engine.docente import analizar_sesion, ARGUMENTO_MINIMO
+
+# Sesión vacía
+a = analizar_sesion({})
+check("docente: sesión vacía total 0", 0, a["resumen"]["total"])
+check("docente: sesión vacía tiene mensaje", 1, len(a["areas_oportunidad"]))
+
+# Sesión completa y sólida: sin señales, área única de "sesión completa"
+justif_solida = {
+    "Dolor agudo": {"decision": "Aceptado", "jerarquia": "Principal", "confianza": "Alta",
+                     "criterios": ["expresión verbal de dolor"],
+                     "justificacion": "La paciente refiere dolor 8/10 en epigastrio con facies álgica y taquicardia, compatible con las características definitorias."},
+    "Riesgo de infección": {"decision": "Rechazado", "jerarquia": "Complementario", "confianza": "Media",
+                             "criterios": ["procedimientos invasivos"],
+                             "justificacion": "No hay datos de ruptura de membranas, fiebre ni procedimientos invasivos recientes en este caso; el riesgo no se sustenta."},
+}
+a = analizar_sesion(justif_solida)
+check("docente: sólida sin señales dx1", [], a["por_diagnostico"][0]["senales"])
+check("docente: sólida sin señales dx2", [], a["por_diagnostico"][1]["senales"])
+check("docente: sólida área única", True, "Sesión completa" in a["areas_oportunidad"][0])
+
+# Decisión sin criterios ni argumento
+justif_debil = {
+    "Dolor agudo": {"decision": "Aceptado", "jerarquia": "Principal", "confianza": "Alta",
+                     "criterios": [], "justificacion": ""},
+}
+a = analizar_sesion(justif_debil)
+senales = a["por_diagnostico"][0]["senales"]
+check("docente: débil detecta sin criterios", True, any("sin criterios" in s for s in senales))
+check("docente: débil detecta sin argumento", True, any("sin argumento" in s for s in senales))
+
+# Argumento corto (bajo el umbral)
+justif_corta = {
+    "Dolor agudo": {"decision": "Aceptado", "jerarquia": "Principal", "confianza": "Alta",
+                     "criterios": ["expresión verbal de dolor"], "justificacion": "porque le duele"},
+}
+a = analizar_sesion(justif_corta)
+check("docente: argumento corto detectado", True,
+      any("breve" in s for s in a["por_diagnostico"][0]["senales"]))
+
+# Principal rechazado sin sustento vs con sustento
+justif_principal_sin = {
+    "Dolor agudo": {"decision": "Rechazado", "jerarquia": "Principal", "confianza": "Alta",
+                     "criterios": [], "justificacion": ""},
+}
+a = analizar_sesion(justif_principal_sin)
+check("docente: principal rechazado sin sustento -> prioridad", True,
+      any("prioridad de revisión" in s for s in a["por_diagnostico"][0]["senales"]))
+
+justif_principal_con = {
+    "Dolor agudo": {"decision": "Rechazado", "jerarquia": "Principal", "confianza": "Alta",
+                     "criterios": ["expresión verbal de dolor"],
+                     "justificacion": "La paciente niega dolor en la valoración actual y no presenta facies álgica ni datos objetivos; el hallazgo del texto era de un turno anterior ya resuelto."},
+}
+a = analizar_sesion(justif_principal_con)
+check("docente: principal rechazado con sustento -> acierto posible", True,
+      any("acierto de juicio" in s for s in a["por_diagnostico"][0]["senales"]))
+
+# Sin decidir
+justif_pendiente = {
+    "Dolor agudo": {"decision": "Sin decidir", "jerarquia": "Principal", "confianza": "Alta",
+                     "criterios": [], "justificacion": ""},
+}
+a = analizar_sesion(justif_pendiente)
+check("docente: sin decidir detectado", True,
+      any("sin decisión" in s.lower() for s in a["por_diagnostico"][0]["senales"]))
+check("docente: área cierre de ciclo", True,
+      any("Cierre del ciclo" in area for area in a["areas_oportunidad"]))
+
+# Aceptación indiscriminada (3+ dx, todo aceptado)
+arg_largo = "Argumento suficientemente desarrollado para superar el umbral mínimo de caracteres del análisis."
+justif_todo_si = {
+    f"Dx{i}": {"decision": "Aceptado", "jerarquia": "Complementario", "confianza": "Media",
+                "criterios": ["criterio"], "justificacion": arg_largo}
+    for i in range(3)
+}
+a = analizar_sesion(justif_todo_si)
+check("docente: aceptación indiscriminada detectada", True,
+      any("Discriminación diagnóstica" in area for area in a["areas_oportunidad"]))
+
+
 # ---------------------------------------------------------------
 # Reporte
 # ---------------------------------------------------------------

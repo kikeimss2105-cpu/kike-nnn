@@ -341,3 +341,109 @@ def generar_word(df_resultados, datos_paciente, justificaciones=None):
     document.save(output)
     output.seek(0)
     return output
+
+
+# =====================================================================
+# REPORTE DOCENTE (Nivel 1 del plan de motor de juicio clínico)
+# =====================================================================
+
+TEAL = "006478"
+NAVY = "142864"
+
+
+def generar_word_docente(df_resultados, datos_paciente, justificaciones, analisis):
+    """Reporte de sesión orientado al docente: reorganiza las decisiones del
+    estudiante por revisión pedagógica (señales + áreas de oportunidad).
+
+    `analisis` es la salida de engine.docente.analizar_sesion(). La lógica de
+    análisis vive en engine/ (probada por golden tests); aquí solo se renderiza.
+    """
+    document = Document()
+
+    section = document.sections[0]
+    section.top_margin = Inches(0.65)
+    section.bottom_margin = Inches(0.65)
+    section.left_margin = Inches(0.6)
+    section.right_margin = Inches(0.6)
+
+    style = document.styles["Normal"]
+    style.font.name = "Arial"
+    style.font.size = Pt(10)
+
+    titulo = document.add_heading("Reporte docente — Sesión de razonamiento clínico", level=1)
+    titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    subtitulo = document.add_paragraph("Sistema KIKE-NNN | Documento de apoyo pedagógico")
+    subtitulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
+    parrafo_fecha = document.add_paragraph(f"Fecha de generación: {fecha}")
+    parrafo_fecha.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    document.add_paragraph("")
+    document.add_paragraph(
+        "Alcance de este reporte: la herramienta sugiere diagnósticos por coincidencia "
+        "clínico-textual y NO dispone de una clave de respuesta validada por caso. Este "
+        "reporte no califica decisiones como correctas o incorrectas: señala patrones del "
+        "razonamiento del estudiante que merecen revisión pedagógica. Rechazar una "
+        "sugerencia con argumento sólido puede reflejar buen juicio clínico."
+    )
+
+    agregar_tabla_diccionario(document, "1. Datos del caso trabajado", datos_paciente)
+
+    resumen = analisis.get("resumen", {})
+    agregar_tabla_diccionario(document, "2. Resumen de decisiones de la sesión", {
+        "Diagnósticos sugeridos": resumen.get("total", 0),
+        "Aceptados": resumen.get("aceptados", 0),
+        "Rechazados": resumen.get("rechazados", 0),
+        "Sin decidir": resumen.get("sin_decidir", 0),
+    })
+
+    document.add_heading("3. Áreas de oportunidad de la sesión", level=2)
+    for area in analisis.get("areas_oportunidad", []):
+        p = document.add_paragraph(style="List Bullet")
+        run = p.add_run(area)
+        run.font.size = Pt(10)
+
+    document.add_heading("4. Revisión por diagnóstico", level=2)
+    document.add_paragraph(
+        "Para cada diagnóstico: la decisión del estudiante, los criterios NANDA que "
+        "seleccionó, su argumento textual y las señales de revisión detectadas."
+    )
+
+    for dx_analisis in analisis.get("por_diagnostico", []):
+        nanda = dx_analisis["nanda"]
+        datos_justif = justificaciones.get(nanda, {})
+
+        document.add_heading(
+            f"{nanda} — {dx_analisis.get('jerarquia', '')} ({dx_analisis.get('decision', '')})",
+            level=3,
+        )
+
+        criterios = datos_justif.get("criterios", []) or []
+        argumento = (datos_justif.get("justificacion", "") or "").strip()
+
+        agregar_tabla_diccionario(document, "Decisión registrada", {
+            "Decisión": dx_analisis.get("decision", ""),
+            "Jerarquía sugerida": dx_analisis.get("jerarquia", ""),
+            "Confianza de la sugerencia": dx_analisis.get("confianza", ""),
+            "Criterios seleccionados": "; ".join(criterios) if criterios else "Ninguno",
+            "Argumento del estudiante": argumento if argumento else "(sin argumento)",
+        })
+
+        senales = dx_analisis.get("senales", [])
+        if senales:
+            document.add_paragraph("Señales de revisión:")
+            for s in senales:
+                p = document.add_paragraph(style="List Bullet")
+                run = p.add_run(s)
+                run.font.size = Pt(10)
+        else:
+            document.add_paragraph(
+                "Sin señales: decisión cerrada, con criterios y argumento desarrollado."
+            )
+
+    output = BytesIO()
+    document.save(output)
+    output.seek(0)
+    return output

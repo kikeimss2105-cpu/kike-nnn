@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-from utils.exportadores import generar_excel, generar_word
+from utils.exportadores import generar_excel, generar_word, generar_word_docente
+from engine.docente import analizar_sesion
 
 from engine.carga import cargar_catalogos
 from engine.criterios import construir_criterios_nanda
@@ -998,8 +999,12 @@ with tab_resultados:
             st.subheader("📥 Exportar plan de cuidados")
             excel_file = generar_excel(df_resultados, datos_paciente, justificaciones_actuales)
             word_file = generar_word(df_resultados, datos_paciente, justificaciones_actuales)
+            analisis_sesion = analizar_sesion(justificaciones_actuales)
+            word_docente = generar_word_docente(
+                df_resultados, datos_paciente, justificaciones_actuales, analisis_sesion
+            )
 
-            col_xl, col_wd = st.columns(2)
+            col_xl, col_wd, col_doc = st.columns(3)
             with col_xl:
                 st.download_button(
                     label="📊 Descargar Excel",
@@ -1013,6 +1018,14 @@ with tab_resultados:
                     label="📄 Descargar Word",
                     data=word_file,
                     file_name="plan_cuidados_nnn_v19.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    use_container_width=True
+                )
+            with col_doc:
+                st.download_button(
+                    label="🧑‍🏫 Reporte docente",
+                    data=word_docente,
+                    file_name="reporte_docente_sesion.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     use_container_width=True
                 )
