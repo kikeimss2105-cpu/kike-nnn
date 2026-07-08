@@ -22,11 +22,24 @@ def generar_resumen_clinico(df_resultados, puntaje_braden, riesgo_braden, eva_do
     if complementarios:
         lineas.append("Diagnósticos complementarios a vigilar: " + ", ".join(complementarios) + ".")
 
-    lineas.append(f"Escala de Braden: {puntaje_braden} puntos, interpretación: {riesgo_braden}.")
-    lineas.append(f"EVA del dolor: {eva_dolor}/10, interpretación: {interpretacion_eva}.")
-    lineas.append(f"Glasgow: {glasgow_total}/15, interpretación: {interpretacion_glasgow}.")
-    lineas.append(f"Riesgo de caídas: {puntaje_caidas} puntos, interpretación: {riesgo_caidas}.")
-    lineas.append(f"Respiratorio: SpO₂ {spo2}%, {interpretacion_spo2}; FR {fr} rpm, {interpretacion_fr}.")
+    if riesgo_braden != "No valorado":
+        lineas.append(f"Escala de Braden: {puntaje_braden} puntos, interpretación: {riesgo_braden}.")
+
+    if interpretacion_eva != "No valorado":
+        lineas.append(f"EVA del dolor: {eva_dolor}/10, interpretación: {interpretacion_eva}.")
+
+    if interpretacion_glasgow != "No valorado":
+        lineas.append(f"Glasgow: {glasgow_total}/15, interpretación: {interpretacion_glasgow}.")
+
+    if riesgo_caidas != "No valorado":
+        lineas.append(f"Riesgo de caídas: {puntaje_caidas} puntos, interpretación: {riesgo_caidas}.")
+
+    if interpretacion_spo2 != "No valorado" and interpretacion_fr != "No valorado":
+        lineas.append(f"Respiratorio: SpO₂ {spo2}%, {interpretacion_spo2}; FR {fr} rpm, {interpretacion_fr}.")
+    elif interpretacion_spo2 != "No valorado":
+        lineas.append(f"Respiratorio: SpO₂ {spo2}%, {interpretacion_spo2}.")
+    elif interpretacion_fr != "No valorado":
+        lineas.append(f"Respiratorio: FR {fr} rpm, {interpretacion_fr}.")
 
     if "embarazo" in hallazgos or "paciente obstétrica" in hallazgos:
         lineas.append("Obstétrico: vigilar presión arterial, cefalea, fosfenos, acúfenos, edema, sangrado, salida de líquido, fiebre, dolor abdominal y movimientos fetales según protocolo.")

@@ -135,6 +135,63 @@ for i, (kwargs, datos_esp, resumen_esp) in enumerate(casos_obst):
     check(f"ruta obstétrica[{i}] resumen", resumen_esp, resumen)
 
 # ---------------------------------------------------------------
+# Resumen clínico — escalas "No valorado" deben omitirse, no imprimirse
+# (fix aplicado 2026-07-01: antes generar_resumen_clinico imprimía
+#  "Escala de Braden: ... interpretación: No valorado." en vez de omitir
+#  la línea completa cuando el toggle correspondiente estaba apagado.)
+# ---------------------------------------------------------------
+df_dx = buscar_diagnosticos("disnea cianosis saturación baja", CAT.nanda, CAT.enlaces)
+
+resumen_normal = generar_resumen_clinico(
+    df_resultados=df_dx,
+    puntaje_braden=14, riesgo_braden="Riesgo moderado",
+    eva_dolor=6, interpretacion_eva="Dolor moderado",
+    glasgow_total=15, interpretacion_glasgow="Estado neurológico aparentemente conservado",
+    puntaje_caidas=2, riesgo_caidas="Riesgo bajo de caídas",
+    spo2=91, interpretacion_spo2="Saturación baja",
+    fr=24, interpretacion_fr="Taquipnea",
+    hallazgos=["disnea", "cianosis"],
+)
+check("resumen normal: incluye Braden", True, "Escala de Braden" in resumen_normal)
+check("resumen normal: incluye EVA", True, "EVA del dolor" in resumen_normal)
+check("resumen normal: incluye Glasgow", True, "Glasgow" in resumen_normal)
+check("resumen normal: incluye caídas", True, "Riesgo de caídas" in resumen_normal)
+check("resumen normal: incluye respiratorio", True, "Respiratorio" in resumen_normal)
+
+resumen_no_valorado = generar_resumen_clinico(
+    df_resultados=df_dx,
+    puntaje_braden=0, riesgo_braden="No valorado",
+    eva_dolor=0, interpretacion_eva="No valorado",
+    glasgow_total=0, interpretacion_glasgow="No valorado",
+    puntaje_caidas=0, riesgo_caidas="No valorado",
+    spo2=98, interpretacion_spo2="No valorado",
+    fr=18, interpretacion_fr="No valorado",
+    hallazgos=["disnea", "cianosis"],
+)
+check("resumen sin valorar: OMITE Braden", False, "Braden" in resumen_no_valorado)
+check("resumen sin valorar: OMITE EVA", False, "EVA del dolor" in resumen_no_valorado)
+check("resumen sin valorar: OMITE Glasgow", False, "Glasgow" in resumen_no_valorado)
+check("resumen sin valorar: OMITE caídas", False, "Riesgo de caídas" in resumen_no_valorado)
+check("resumen sin valorar: OMITE respiratorio", False, "Respiratorio" in resumen_no_valorado)
+check("resumen sin valorar: conserva diagnósticos", True, "Prioridad principal" in resumen_no_valorado)
+
+resumen_mixto = generar_resumen_clinico(
+    df_resultados=df_dx,
+    puntaje_braden=14, riesgo_braden="Riesgo moderado",
+    eva_dolor=0, interpretacion_eva="No valorado",
+    glasgow_total=15, interpretacion_glasgow="Estado neurológico aparentemente conservado",
+    puntaje_caidas=0, riesgo_caidas="No valorado",
+    spo2=98, interpretacion_spo2="No valorado",
+    fr=18, interpretacion_fr="No valorado",
+    hallazgos=["disnea", "cianosis"],
+)
+check("resumen mixto: incluye Braden (sí valorado)", True, "Braden" in resumen_mixto)
+check("resumen mixto: OMITE EVA (no valorado)", False, "EVA del dolor" in resumen_mixto)
+check("resumen mixto: incluye Glasgow (sí valorado)", True, "Glasgow" in resumen_mixto)
+check("resumen mixto: OMITE caídas (no valorado)", False, "Riesgo de caídas" in resumen_mixto)
+check("resumen mixto: OMITE respiratorio (ninguno valorado)", False, "Respiratorio" in resumen_mixto)
+
+# ---------------------------------------------------------------
 # Alertas clínicas generales
 # ---------------------------------------------------------------
 alertas = generar_alertas_clinicas(
