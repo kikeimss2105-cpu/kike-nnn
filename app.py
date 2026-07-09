@@ -999,7 +999,7 @@ with tab_resultados:
             st.subheader("📥 Exportar plan de cuidados")
             excel_file = generar_excel(df_resultados, datos_paciente, justificaciones_actuales)
             word_file = generar_word(df_resultados, datos_paciente, justificaciones_actuales)
-            analisis_sesion = analizar_sesion(justificaciones_actuales)
+            analisis_sesion = analizar_sesion(justificaciones_actuales, datos_paciente)
             word_docente = generar_word_docente(
                 df_resultados, datos_paciente, justificaciones_actuales, analisis_sesion
             )

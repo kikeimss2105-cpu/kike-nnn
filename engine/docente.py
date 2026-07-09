@@ -20,6 +20,29 @@ con un argumento sólido puede ser un acto de buen juicio clínico, no un error.
 # desarrollo suficiente. ~60 caracteres equivale a una oración corta real.
 ARGUMENTO_MINIMO = 60
 
+# Escalas instrumentales que la app permite valorar u omitir. La clave es el
+# campo de datos_paciente que delata la omisión; el valor, el nombre legible.
+ESCALAS_VALORABLES = {
+    "Interpretación Braden": "Braden (riesgo de úlceras por presión)",
+    "Interpretación EVA": "EVA (intensidad del dolor)",
+    "Interpretación Glasgow": "Glasgow (estado neurológico)",
+    "Interpretación riesgo de caídas": "Riesgo de caídas",
+    "Interpretación SpO2": "Valoración respiratoria (SpO2/FR)",
+}
+
+
+def detectar_escalas_sin_valorar(datos_paciente):
+    """Devuelve los nombres legibles de las escalas que el estudiante dejó
+    en 'No valorado' durante la sesión. Omitir una escala no es un error en
+    sí mismo (puede ser irrelevante para el caso), pero es información del
+    proceso de valoración que el docente merece ver."""
+    if not datos_paciente:
+        return []
+    return [
+        nombre for campo, nombre in ESCALAS_VALORABLES.items()
+        if datos_paciente.get(campo) == "No valorado"
+    ]
+
 
 def _analizar_diagnostico(nanda, datos):
     """Genera las señales de revisión para una decisión individual."""
@@ -73,19 +96,30 @@ def _analizar_diagnostico(nanda, datos):
     }
 
 
-def analizar_sesion(justificaciones):
+def analizar_sesion(justificaciones, datos_paciente=None):
     """Análisis completo de una sesión para el reporte docente.
 
     justificaciones: dict {nanda: {decision, confianza, jerarquia, puntaje,
                                     criterios: list, justificacion: str}}
+    datos_paciente: dict opcional con los campos de la valoración; se usa
+                    para detectar escalas dejadas en 'No valorado'.
     Devuelve dict con: resumen (conteos), por_diagnostico (lista de análisis
-    individuales) y areas_oportunidad (lista de textos agregados).
+    individuales), escalas_sin_valorar y areas_oportunidad.
     """
+    escalas_sin_valorar = detectar_escalas_sin_valorar(datos_paciente)
+
     if not justificaciones:
+        areas = ["No hay decisiones registradas en esta sesión."]
+        if escalas_sin_valorar:
+            areas.append(
+                "Valoración instrumental incompleta: quedaron sin valorar — "
+                + ", ".join(escalas_sin_valorar) + "."
+            )
         return {
             "resumen": {"total": 0, "aceptados": 0, "rechazados": 0, "sin_decidir": 0},
             "por_diagnostico": [],
-            "areas_oportunidad": ["No hay decisiones registradas en esta sesión."],
+            "escalas_sin_valorar": escalas_sin_valorar,
+            "areas_oportunidad": areas,
         }
 
     por_dx = [_analizar_diagnostico(nanda, datos) for nanda, datos in justificaciones.items()]
@@ -139,6 +173,14 @@ def analizar_sesion(justificaciones):
             "dificultad para reconocer diagnósticos pertinentes."
         )
 
+    if escalas_sin_valorar:
+        areas.append(
+            "Valoración instrumental: quedaron sin valorar — "
+            + ", ".join(escalas_sin_valorar)
+            + ". Revisar con el alumno si fue una omisión o una decisión clínica "
+            "deliberada según la pertinencia de cada escala para este caso."
+        )
+
     if not areas:
         areas.append(
             "Sesión completa: todas las decisiones cerradas, con criterios y argumento "
@@ -152,5 +194,6 @@ def analizar_sesion(justificaciones):
             "rechazados": rechazados, "sin_decidir": sin_decidir,
         },
         "por_diagnostico": por_dx,
+        "escalas_sin_valorar": escalas_sin_valorar,
         "areas_oportunidad": areas,
     }

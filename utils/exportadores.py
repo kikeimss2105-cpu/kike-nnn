@@ -392,11 +392,13 @@ def generar_word_docente(df_resultados, datos_paciente, justificaciones, analisi
     agregar_tabla_diccionario(document, "1. Datos del caso trabajado", datos_paciente)
 
     resumen = analisis.get("resumen", {})
+    escalas_omitidas = analisis.get("escalas_sin_valorar", [])
     agregar_tabla_diccionario(document, "2. Resumen de decisiones de la sesión", {
         "Diagnósticos sugeridos": resumen.get("total", 0),
         "Aceptados": resumen.get("aceptados", 0),
         "Rechazados": resumen.get("rechazados", 0),
         "Sin decidir": resumen.get("sin_decidir", 0),
+        "Escalas sin valorar": "; ".join(escalas_omitidas) if escalas_omitidas else "Ninguna — valoración instrumental completa",
     })
 
     document.add_heading("3. Áreas de oportunidad de la sesión", level=2)

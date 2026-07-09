@@ -299,6 +299,35 @@ check("docente: aceptación indiscriminada detectada", True,
       any("Discriminación diagnóstica" in area for area in a["areas_oportunidad"]))
 
 
+
+# Escalas sin valorar (idea de Kike: la omisión de valoración también es señal docente)
+from engine.docente import detectar_escalas_sin_valorar
+
+dp_completo = {"Interpretación Braden": "Riesgo moderado", "Interpretación EVA": "Dolor moderado",
+               "Interpretación Glasgow": "Estado neurológico aparentemente conservado",
+               "Interpretación riesgo de caídas": "Riesgo bajo de caídas",
+               "Interpretación SpO2": "Saturación dentro de rango esperado"}
+check("escalas: valoración completa -> vacío", [], detectar_escalas_sin_valorar(dp_completo))
+
+dp_parcial = dict(dp_completo)
+dp_parcial["Interpretación Braden"] = "No valorado"
+dp_parcial["Interpretación Glasgow"] = "No valorado"
+detectadas = detectar_escalas_sin_valorar(dp_parcial)
+check("escalas: detecta 2 omitidas", 2, len(detectadas))
+check("escalas: Braden detectada", True, any("Braden" in e for e in detectadas))
+check("escalas: Glasgow detectada", True, any("Glasgow" in e for e in detectadas))
+check("escalas: sin datos -> vacío", [], detectar_escalas_sin_valorar(None))
+
+a = analizar_sesion(justif_solida, dp_parcial)
+check("escalas: área de valoración instrumental presente", True,
+      any("Valoración instrumental" in area for area in a["areas_oportunidad"]))
+check("escalas: campo en retorno", 2, len(a["escalas_sin_valorar"]))
+
+a = analizar_sesion(justif_solida, dp_completo)
+check("escalas: completa no genera área instrumental", False,
+      any("Valoración instrumental" in area for area in a["areas_oportunidad"]))
+
+
 # ---------------------------------------------------------------
 # Reporte
 # ---------------------------------------------------------------
