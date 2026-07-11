@@ -359,6 +359,32 @@ check("gordon: 00126 ya no está en Cognitivo-perceptual", False,
       "Déficit de conocimientos" in agrupado_g.get("Cognitivo-perceptual", []))
 
 
+
+# ---------------------------------------------------------------
+# Consolidación de hallazgos (engine/texto.py) — el gap real que
+# encontramos: Gordon disparaba diagnósticos pero no llegaba al resumen
+# narrativo ni a las alertas clínicas generales porque su lista nunca
+# se mezclaba con hallazgos_seleccionados. Ahora la mezcla es una
+# función testeada, no una concatenación inline en app.py.
+# ---------------------------------------------------------------
+from engine.texto import consolidar_hallazgos
+
+check("consolidar: combina y deduplica", ["a", "b", "c"],
+      consolidar_hallazgos(["a", "b"], ["b", "c"]))
+check("consolidar: preserva orden de primera aparición", ["x", "y", "z"],
+      consolidar_hallazgos(["x"], [], ["y", "x", "z"]))
+check("consolidar: listas vacías o None no rompen", ["solo"],
+      consolidar_hallazgos([], None, ["solo"], None))
+check("consolidar: todo vacío -> vacío", [], consolidar_hallazgos([], [], []))
+
+# El caso puntual del bug: hallazgos de Gordon deben terminar en la
+# misma lista consolidada que ve generar_alertas_clinicas y el resumen.
+hallazgos_gordon_test = hallazgos_desde_respuestas(patrones_g, {"peso_perdida": True})
+consolidado_test = consolidar_hallazgos(["fiebre"], hallazgos_gordon_test)
+check("consolidar: Gordon queda visible para alertas/resumen", True,
+      "pérdida de peso" in consolidado_test)
+
+
 # ---------------------------------------------------------------
 # Reporte
 # ---------------------------------------------------------------

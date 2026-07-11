@@ -15,6 +15,7 @@ from engine.interpretaciones import (
 from engine.obstetrico import generar_alertas_obstetricas, evaluar_rutas_obstetricas
 from engine.resumen import generar_resumen_clinico, generar_alertas_clinicas, alertas_a_texto
 from engine.gordon import cargar_patrones_gordon, hallazgos_desde_respuestas
+from engine.texto import consolidar_hallazgos
 
 st.set_page_config(page_title="KIKE-NNN | Apoyo al razonamiento clínico", layout="wide")
 
@@ -716,17 +717,11 @@ if tipo_paciente == "Obstétrico":
                                         "signos de alarma obstétrica"]
 
 # Combinar todo y deduplicar
-hallazgos_seleccionados = list(dict.fromkeys(
-    hallazgos_seleccionados
-    + hallazgos_obstetricos
-    + hallazgos_obstetricos_ruta
-    + hallazgos_perfil
-    + hallazgos_respiratorios
-    + hallazgos_braden
-    + hallazgos_eva
-    + hallazgos_glasgow
-    + hallazgos_caidas
-))
+hallazgos_seleccionados = consolidar_hallazgos(
+    hallazgos_seleccionados, hallazgos_obstetricos, hallazgos_obstetricos_ruta,
+    hallazgos_perfil, hallazgos_respiratorios, hallazgos_braden, hallazgos_eva,
+    hallazgos_glasgow, hallazgos_caidas, hallazgos_gordon,
+)
 
 # =========================
 # SIDEBAR — STATS EN TIEMPO REAL
@@ -779,8 +774,7 @@ with tab_resultados:
     if st.button("🩺 Generar Plan de Cuidados", type="primary"):
         with st.spinner("Analizando hallazgos y generando plan educativo..."):
             texto_estructurado = " ".join(hallazgos_seleccionados)
-            texto_gordon = " ".join(hallazgos_gordon)
-            texto_clinico = f"{tipo_paciente} {dx_medico} {signos_vitales} {factores_riesgo} {sintomas} {texto_estructurado} {texto_gordon}"
+            texto_clinico = f"{tipo_paciente} {dx_medico} {signos_vitales} {factores_riesgo} {sintomas} {texto_estructurado}"
 
             datos_paciente = {
                 "Tipo de paciente": tipo_paciente,

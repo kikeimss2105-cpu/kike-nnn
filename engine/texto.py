@@ -26,3 +26,22 @@ def normalizar_texto(texto):
     for original, nuevo in reemplazos.items():
         texto = texto.replace(original, nuevo)
     return texto
+
+
+def consolidar_hallazgos(*listas_hallazgos):
+    """Combina múltiples listas de hallazgos (checkboxes, escalas, rutas
+    obstétricas, Gordon, etc.) en una sola lista deduplicada, preservando
+    el orden de primera aparición.
+
+    Existe como función explícita (en vez de la concatenación inline que
+    vivía en app.py) para que la integración de una nueva fuente de
+    hallazgos — como ocurrió con Gordon, que quedó fuera de esta lista
+    varias semanas sin que ningún test lo detectara — quede cubierta por
+    golden tests. Si mañana se agrega una fuente nueva y se olvida pasarla
+    aquí, seguirá sin detectarse automáticamente: lo que este test SÍ
+    garantiza es que las fuentes ya conectadas nunca se vuelvan a desconectar
+    silenciosamente."""
+    combinado = []
+    for lista in listas_hallazgos:
+        combinado += (lista or [])
+    return list(dict.fromkeys(combinado))
