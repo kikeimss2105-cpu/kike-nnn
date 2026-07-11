@@ -1,0 +1,25 @@
+patron_id,item_id,pregunta,tipo,hallazgo_texto,estado
+nutricional_metabolico,peso_perdida,"¿Pérdida de peso no intencionada reciente?",toggle,"pérdida de peso",listo
+nutricional_metabolico,apetito,"¿Anorexia o apetito muy disminuido?",toggle,"anorexia",listo
+nutricional_metabolico,ingesta,"¿Ingesta oral insuficiente respecto a requerimientos?",toggle,"ingesta insuficiente",listo
+nutricional_metabolico,edema,"¿Edema presente?",toggle,"edema",listo
+nutricional_metabolico,oliguria,"¿Oliguria (diuresis disminuida)?",toggle,"oliguria",listo
+nutricional_metabolico,balance_hidrico,"¿Balance hídrico negativo documentado o sospechado?",toggle,"balance hídrico negativo",listo
+eliminacion,evacuaciones_duras,"¿Evacuaciones duras o con esfuerzo?",toggle,"evacuaciones duras",listo
+eliminacion,distension,"¿Distensión abdominal?",toggle,"distensión abdominal",listo
+eliminacion,frecuencia_evacuatoria,"¿Disminución notable en frecuencia de evacuaciones?",toggle,"disminución de frecuencia",listo
+actividad_ejercicio,disnea_esfuerzo,"¿Disnea al esfuerzo o actividad mínima?",toggle,"disnea de esfuerzo",listo
+actividad_ejercicio,fatiga,"¿Fatiga reportada por el paciente?",toggle,"fatiga",listo
+actividad_ejercicio,debilidad,"¿Debilidad generalizada?",toggle,"debilidad",listo
+actividad_ejercicio,taquicardia_esfuerzo,"¿Taquicardia con el esfuerzo?",toggle,"taquicardia al esfuerzo",listo
+actividad_ejercicio,dificultad_dormir,"¿Dificultad para conciliar el sueño?",toggle,"dificultad para dormir",listo
+actividad_ejercicio,sueno_no_reparador,"¿Sueño no reparador / despertar frecuente?",toggle,"sueño no reparador",listo
+percepcion_manejo_salud,verbaliza_desconocimiento,"¿El paciente verbaliza no entender su condición o tratamiento?",toggle,"verbaliza falta de conocimiento",listo
+percepcion_manejo_salud,seguimiento_tratamiento,"¿Seguimiento inadecuado del tratamiento indicado?",toggle,"seguimiento inadecuado del tratamiento",listo
+percepcion_manejo_salud,desinformacion,"¿Datos de desinformación sobre su proceso de salud?",toggle,"desinformación",listo
+cognitivo_perceptual,,,,,pendiente_criterio_clinico
+autopercepcion,,,,,pendiente_criterio_clinico
+rol_relaciones,,,,,pendiente_criterio_clinico
+sexualidad_reproduccion,,,,,pendiente_criterio_clinico
+afrontamiento_tolerancia_estres,,,,,pendiente_criterio_clinico
+valores_creencias,,,,,pendiente_criterio_clinico

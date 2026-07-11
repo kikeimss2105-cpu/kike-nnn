@@ -328,6 +328,37 @@ check("escalas: completa no genera área instrumental", False,
       any("Valoración instrumental" in area for area in a["areas_oportunidad"]))
 
 
+
+# ---------------------------------------------------------------
+# Gordon — patrones funcionales, crosswalk y excepciones (Nivel Gordon)
+# ---------------------------------------------------------------
+from engine.gordon import cargar_patrones_gordon, hallazgos_desde_respuestas, cargar_crosswalk, cargar_excepciones, agrupar_nanda_por_patron
+
+patrones_g = cargar_patrones_gordon(data_dir=str(DATA_DIR))
+listos_g = [p for p in patrones_g if p.estado == "listo"]
+check("gordon: 4 patrones listos", 4, len(listos_g))
+check("gordon: 11 patrones totales", 11, len(patrones_g))
+
+respuestas_g = {"peso_perdida": True, "apetito": True, "ingesta": True}
+hallazgos_g = hallazgos_desde_respuestas(patrones_g, respuestas_g)
+check("gordon: hallazgos generados", 3, len(hallazgos_g))
+check("gordon: contiene pérdida de peso", True, "pérdida de peso" in hallazgos_g)
+
+df_dx_gordon = buscar_diagnosticos(" ".join(hallazgos_g), CAT.nanda, CAT.enlaces)
+check("gordon: dispara diagnóstico nutricional", True,
+      "Desequilibrio nutricional inferior a las necesidades corporales" in df_dx_gordon["NANDA"].tolist())
+
+crosswalk_g = cargar_crosswalk(data_dir=str(DATA_DIR))
+excepciones_g = cargar_excepciones(data_dir=str(DATA_DIR))
+agrupado_g = agrupar_nanda_por_patron(CAT.nanda, crosswalk_g, excepciones_g)
+total_g = sum(len(v) for v in agrupado_g.values())
+check("gordon: crosswalk reparte los 60 dx sin perder ni duplicar", 60, total_g)
+check("gordon: excepción 00126 reclasificada", True,
+      "Déficit de conocimientos" in agrupado_g.get("Percepción-manejo de la salud", []))
+check("gordon: 00126 ya no está en Cognitivo-perceptual", False,
+      "Déficit de conocimientos" in agrupado_g.get("Cognitivo-perceptual", []))
+
+
 # ---------------------------------------------------------------
 # Reporte
 # ---------------------------------------------------------------

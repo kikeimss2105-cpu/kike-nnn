@@ -14,6 +14,7 @@ from engine.interpretaciones import (
 )
 from engine.obstetrico import generar_alertas_obstetricas, evaluar_rutas_obstetricas
 from engine.resumen import generar_resumen_clinico, generar_alertas_clinicas, alertas_a_texto
+from engine.gordon import cargar_patrones_gordon, hallazgos_desde_respuestas
 
 st.set_page_config(page_title="KIKE-NNN | Apoyo al razonamiento clínico", layout="wide")
 
@@ -102,6 +103,14 @@ def _construir_criterios_nanda_cacheado(nanda_df):
 nanda_criterios = _construir_criterios_nanda_cacheado(nanda_df)
 
 
+@st.cache_data
+def _cargar_patrones_gordon_cacheado():
+    return cargar_patrones_gordon(data_dir="data")
+
+
+patrones_gordon = _cargar_patrones_gordon_cacheado()
+
+
 # =========================
 # MOTOR DE PUNTUACIÓN
 # =========================
@@ -156,6 +165,26 @@ with tab_valoracion:
     st.caption(
         "Selecciona los hallazgos presentes. Estos datos alimentan el motor NANDA junto con el texto libre."
     )
+
+    with st.expander("🧭 Valoración por Patrones Funcionales de Gordon (piloto — 4 de 11 patrones)"):
+        st.caption(
+            "Módulo en construcción: organiza la valoración según los Patrones Funcionales de "
+            "Gordon. Los hallazgos marcados aquí se suman a los del resto del formulario — no lo "
+            "reemplazan. Actualmente cubre 4 de 11 patrones; los demás requieren definir el "
+            "criterio clínico de sus preguntas."
+        )
+        respuestas_gordon = {}
+        for patron in patrones_gordon:
+            if patron.estado != "listo":
+                continue
+            st.markdown(f"**{patron.nombre}**")
+            cols_gordon = st.columns(3)
+            for i, item in enumerate(patron.items):
+                with cols_gordon[i % 3]:
+                    respuestas_gordon[item.item_id] = st.checkbox(
+                        item.pregunta, key=f"gordon_{item.item_id}"
+                    )
+        hallazgos_gordon = hallazgos_desde_respuestas(patrones_gordon, respuestas_gordon)
 
     col_resp, col_piel = st.columns(2)
 
@@ -750,7 +779,8 @@ with tab_resultados:
     if st.button("🩺 Generar Plan de Cuidados", type="primary"):
         with st.spinner("Analizando hallazgos y generando plan educativo..."):
             texto_estructurado = " ".join(hallazgos_seleccionados)
-            texto_clinico = f"{tipo_paciente} {dx_medico} {signos_vitales} {factores_riesgo} {sintomas} {texto_estructurado}"
+            texto_gordon = " ".join(hallazgos_gordon)
+            texto_clinico = f"{tipo_paciente} {dx_medico} {signos_vitales} {factores_riesgo} {sintomas} {texto_estructurado} {texto_gordon}"
 
             datos_paciente = {
                 "Tipo de paciente": tipo_paciente,
