@@ -1,119 +1,182 @@
 #!/bin/bash
-# =============================================================
-# KIKE-NNN — Script de preparación para deploy en Streamlit Cloud
-# Ejecutar desde: ~/ProyectosIA/generador_nnn_v18_1_ajuste_fino_obstetrico_estable/
-# Uso: bash deploy_prep.sh
-# =============================================================
 
-set -e  # Detener si cualquier comando falla
+set -euo pipefail
 
-REPO_DIR="$HOME/kike-nnn-deploy"
-SOURCE_DIR="$(pwd)"
+SOURCE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+DEST_DIR="$HOME/kike-nnn-deploy"
+EXECUTE=false
 
-echo ""
-echo "================================================="
-echo "  KIKE-NNN v18.1 — Preparación para deploy"
-echo "================================================="
-echo ""
+usage() {
+    cat <<'USAGE'
+Uso:
+  bash deploy_prep.sh [--dest RUTA]
+  bash deploy_prep.sh --execute [--dest RUTA]
 
-# 1. Crear carpeta del repo
-echo "[1/5] Creando carpeta del repositorio..."
-rm -rf "$REPO_DIR"
-mkdir -p "$REPO_DIR/utils" "$REPO_DIR/data" "$REPO_DIR/.streamlit"
+Sin --execute, el script únicamente muestra el plan y no escribe archivos.
 
-# 2. Copiar archivos esenciales
-echo "[2/5] Copiando archivos de la app..."
-cp "$SOURCE_DIR/app.py" "$REPO_DIR/"
-cp "$SOURCE_DIR/utils/exportadores.py" "$REPO_DIR/utils/"
-touch "$REPO_DIR/utils/__init__.py"
+Opciones:
+  --execute       Ejecuta la preparación del destino.
+  --dest RUTA     Selecciona un destino nuevo y explícito.
+  -h, --help      Muestra esta ayuda.
+USAGE
+}
 
-# Copiar todos los CSV de data/
-cp "$SOURCE_DIR/data/"*.csv "$REPO_DIR/data/"
-echo "      CSVs copiados: $(ls "$REPO_DIR/data/"*.csv | wc -l) archivos"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --execute)
+            EXECUTE=true
+            shift
+            ;;
+        --dest)
+            if [[ $# -lt 2 || -z "$2" ]]; then
+                echo "ERROR: --dest requiere una ruta." >&2
+                exit 2
+            fi
+            DEST_DIR="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "ERROR: argumento desconocido: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
 
-# 3. Crear archivos de configuración
-echo "[3/5] Creando archivos de configuración..."
+REQUIRED_SOURCES=(
+    "app.py"
+    "requirements.txt"
+    ".streamlit/config.toml"
+    "engine/__init__.py"
+    "engine/carga.py"
+    "engine/criterios.py"
+    "engine/docente.py"
+    "engine/gordon.py"
+    "engine/interpretaciones.py"
+    "engine/motor.py"
+    "engine/obstetrico.py"
+    "engine/plan.py"
+    "engine/resumen.py"
+    "engine/texto.py"
+    "utils/__init__.py"
+    "utils/exportadores.py"
+)
 
-cat > "$REPO_DIR/requirements.txt" << 'REQ'
-streamlit>=1.35.0
-pandas>=2.0.0
-openpyxl>=3.1.0
-python-docx>=1.0.0
-REQ
+for relative_path in "${REQUIRED_SOURCES[@]}"; do
+    if [[ ! -f "$SOURCE_DIR/$relative_path" ]]; then
+        echo "ERROR: falta el archivo requerido: $SOURCE_DIR/$relative_path" >&2
+        exit 1
+    fi
+done
 
-cat > "$REPO_DIR/.streamlit/config.toml" << 'CFG'
-[browser]
-gatherUsageStats = false
-
-[theme]
-base = "light"
-
-[server]
-maxUploadSize = 5
-CFG
-
-cat > "$REPO_DIR/.gitignore" << 'GIT'
-venv/
-.venv/
-__pycache__/
-*.py[cod]
-migrate.py
-migrations/
-*.zip
-ledger.json
-.DS_Store
-GIT
-
-# 4. Verificar que app.py tiene el disclaimer bloqueante
-echo "[4/5] Verificando app.py..."
-if grep -q "st.stop()" "$REPO_DIR/app.py"; then
-    echo "      ✓ Disclaimer bloqueante presente"
-else
-    echo "      ✗ ADVERTENCIA: st.stop() no encontrado en app.py"
-    echo "        El app.py del repo debe ser la versión modificada, no la original."
+if [[ ! -d "$SOURCE_DIR/data" ]]; then
+    echo "ERROR: falta el directorio requerido: $SOURCE_DIR/data" >&2
+    exit 1
 fi
 
-python3 -c "
-import ast
-with open('$REPO_DIR/app.py') as f: src = f.read()
-ast.parse(src)
-print('      ✓ app.py compila sin errores de sintaxis')
-"
+mapfile -d '' SOURCE_CSV_FILES < <(
+    find "$SOURCE_DIR/data" -type f -name '*.csv' -print0
+)
+SOURCE_CSV_COUNT="${#SOURCE_CSV_FILES[@]}"
 
-# 5. Resultado
-echo "[5/5] Estructura final del repositorio:"
-find "$REPO_DIR" -not -path '*/__pycache__/*' | sort
+if [[ "$SOURCE_CSV_COUNT" -eq 0 ]]; then
+    echo "ERROR: data/ no contiene ningún archivo CSV." >&2
+    exit 1
+fi
 
-echo ""
+if [[ -e "$DEST_DIR" ]]; then
+    echo "ERROR: el destino ya existe y no será modificado: $DEST_DIR" >&2
+    exit 1
+fi
+
 echo "================================================="
-echo "  Listo. Ahora sigue estos pasos:"
+echo "  KIKE-NNN v19 — Preparación segura para deploy"
 echo "================================================="
-echo ""
-echo "  PASO A — Inicializar git:"
-echo "  cd $REPO_DIR"
-echo "  git init"
-echo "  git add ."
-echo "  git commit -m 'feat: KIKE-NNN v18.1 deploy inicial'"
-echo ""
-echo "  PASO B — Crear repo en GitHub:"
-echo "  1. Ve a https://github.com/new"
-echo "  2. Nombre: kike-nnn"
-echo "  3. Privado (Private) ← recomendado"
-echo "  4. NO marques 'Add README' ni ninguna opción extra"
-echo "  5. Crea el repo y copia la URL que aparece"
-echo ""
-echo "  PASO C — Subir código:"
-echo "  git remote add origin https://github.com/TU-USUARIO/kike-nnn.git"
-echo "  git push -u origin main"
-echo ""
-echo "  PASO D — Deploy en Streamlit Cloud:"
-echo "  1. Ve a https://share.streamlit.io"
-echo "  2. New app"
-echo "  3. Selecciona el repo kike-nnn"
-echo "  4. Branch: main"
-echo "  5. Main file path: app.py"
-echo "  6. App URL: kike-nnn (o el nombre que quieras)"
-echo "  7. Deploy!"
-echo ""
-echo "  La app estará lista en 2-3 minutos."
-echo "================================================="
+echo "Origen:      $SOURCE_DIR"
+echo "Destino:     $DEST_DIR"
+echo "CSV origen:  $SOURCE_CSV_COUNT"
+echo
+echo "Plan:"
+echo "  1. Crear un destino nuevo."
+echo "  2. Copiar app.py."
+echo "  3. Copiar engine/, utils/ y data/ sin cachés ni bytecode."
+echo "  4. Copiar .streamlit/config.toml."
+echo "  5. Copiar requirements.txt."
+echo "  6. Validar módulos, exclusiones y cantidad de CSV copiados."
+echo
+
+if [[ "$EXECUTE" != true ]]; then
+    echo "Modo seguro: no se escribió ningún archivo."
+    echo "Para ejecutar este plan, usa --execute."
+    exit 0
+fi
+
+echo "[1/6] Creando destino nuevo..."
+mkdir -- "$DEST_DIR"
+
+echo "[2/6] Copiando app.py..."
+cp -- "$SOURCE_DIR/app.py" "$DEST_DIR/"
+
+echo "[3/6] Copiando módulos y datos sin cachés ni bytecode..."
+tar \
+    --exclude='*/__pycache__' \
+    --exclude='*/__pycache__/*' \
+    --exclude='*.pyc' \
+    --exclude='*.pyo' \
+    -C "$SOURCE_DIR" \
+    -cf - engine utils data |
+    tar -C "$DEST_DIR" -xf -
+
+echo "[4/6] Copiando configuración canónica..."
+mkdir -- "$DEST_DIR/.streamlit"
+cp -- "$SOURCE_DIR/.streamlit/config.toml" "$DEST_DIR/.streamlit/"
+
+echo "[5/6] Copiando requirements.txt..."
+cp -- "$SOURCE_DIR/requirements.txt" "$DEST_DIR/"
+
+echo "[6/6] Validando contenido copiado..."
+for relative_path in "${REQUIRED_SOURCES[@]}"; do
+    if [[ ! -f "$DEST_DIR/$relative_path" ]]; then
+        echo "ERROR: no se copió el archivo requerido: $DEST_DIR/$relative_path" >&2
+        exit 1
+    fi
+done
+
+if [[ ! -d "$DEST_DIR/data" ]]; then
+    echo "ERROR: no se copió el directorio de datos." >&2
+    exit 1
+fi
+
+mapfile -d '' DEST_CSV_FILES < <(
+    find "$DEST_DIR/data" -type f -name '*.csv' -print0
+)
+DEST_CSV_COUNT="${#DEST_CSV_FILES[@]}"
+
+if [[ "$DEST_CSV_COUNT" -ne "$SOURCE_CSV_COUNT" ]]; then
+    echo "ERROR: la cantidad de CSV no coincide." >&2
+    echo "Origen: $SOURCE_CSV_COUNT; destino: $DEST_CSV_COUNT" >&2
+    exit 1
+fi
+
+EXCLUDED_ARTIFACT="$(
+    find "$DEST_DIR/engine" "$DEST_DIR/utils" "$DEST_DIR/data" \
+        \( -type d -name '__pycache__' \
+        -o -type f -name '*.pyc' \
+        -o -type f -name '*.pyo' \) \
+        -print -quit
+)"
+
+if [[ -n "$EXCLUDED_ARTIFACT" ]]; then
+    echo "ERROR: se copió un artefacto excluido: $EXCLUDED_ARTIFACT" >&2
+    exit 1
+fi
+
+echo
+echo "Preparación completada correctamente."
+echo "Destino:      $DEST_DIR"
+echo "CSV copiados: $DEST_CSV_COUNT"
+echo "No se instalaron dependencias ni se ejecutó Streamlit."
