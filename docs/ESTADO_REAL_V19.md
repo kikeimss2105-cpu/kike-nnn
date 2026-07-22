@@ -36,6 +36,24 @@
 | Debriefing Tanner | AUSENTE | Sin módulo | No implementado |
 | Validación clínica formal | NO DEMOSTRADA | Sin evidencia en repositorio | Requiere revisión humana y bibliográfica |
 
+## 2.1 Catálogos NOC y NIC
+
+Los archivos `data/nic.csv` y `data/noc.csv` contienen únicamente encabezados y no forman parte del flujo activo.
+
+El sistema obtiene las relaciones y contenidos NOC-NIC mediante:
+
+- `data/enlaces.csv`
+- `data/noc_indicadores.csv`
+- `data/nic_actividades.csv`
+- `data/fundamentos.csv`
+- `data/metas.csv`
+
+Estado de `data/nic.csv` y `data/noc.csv`:
+
+    RESIDUALES_NO_UTILIZADOS
+
+No se eliminarán durante la Operación TANNER-UNO.
+
 ## 3. Riesgos arquitectónicos
 
 1. `app.py` contiene 1091 líneas y coordina demasiadas responsabilidades.
