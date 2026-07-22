@@ -1,69 +1,22 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
-from engine.tanner import (
-    CategoriaIndicio,
-    IndicioTanner,
-    evaluar_noticing,
-)
+from engine.tanner import evaluar_noticing
+from engine.tanner.casos import cargar_caso_tanner
+from engine.tanner.modelos import CategoriaIndicio, IndicioTanner
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+CASO_OBSTETRICO = REPO_ROOT / "data" / "casos" / "OBS-HTA-001.yaml"
 
 
 @pytest.fixture
 def indicios_caso() -> tuple[IndicioTanner, ...]:
-    return (
-        IndicioTanner(
-            id="pa_165_115",
-            texto="Presión arterial de 165/115 mmHg",
-            categoria=CategoriaIndicio.CRITICO,
-            esperado=True,
-            fundamento="Hipertensión grave.",
-        ),
-        IndicioTanner(
-            id="cefalea_intensa",
-            texto="Cefalea intensa",
-            categoria=CategoriaIndicio.CRITICO,
-            esperado=True,
-            fundamento="Manifestación neurológica de alarma.",
-        ),
-        IndicioTanner(
-            id="fotofobia",
-            texto="Molestia importante ante la luz",
-            categoria=CategoriaIndicio.RELEVANTE,
-            esperado=True,
-            fundamento="Síntoma neurológico que requiere valoración.",
-        ),
-        IndicioTanner(
-            id="gestacion_36",
-            texto="Embarazo de 36 semanas",
-            categoria=CategoriaIndicio.CONTEXTO_ESENCIAL,
-            esperado=True,
-            fundamento="Contexto obstétrico.",
-        ),
-        IndicioTanner(
-            id="inquietud",
-            texto="Paciente inquieta",
-            categoria=CategoriaIndicio.COMPLEMENTARIO,
-            esperado=True,
-            fundamento="Dato inespecífico que requiere contexto.",
-        ),
-        IndicioTanner(
-            id="fr_20",
-            texto="Frecuencia respiratoria de 20 rpm",
-            categoria=CategoriaIndicio.DATO_NO_PRIORITARIO,
-            esperado=False,
-            fundamento="Sin alteración aparente en este escenario.",
-        ),
-        IndicioTanner(
-            id="pregunta_pareja",
-            texto="La pareja pregunta si el nacimiento ocurrirá hoy",
-            categoria=CategoriaIndicio.CONTEXTO_NO_PRIORITARIO,
-            esperado=False,
-            fundamento=(
-                "Requiere respuesta posterior sin desplazar la atención urgente."
-            ),
-        ),
-    )
+    caso = cargar_caso_tanner(CASO_OBSTETRICO)
+    return caso.indicios_noticing
 
 
 def test_reconoce_todos_los_indicios_esperados(indicios_caso) -> None:
