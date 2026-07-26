@@ -1,12 +1,13 @@
 """Cliente NVIDIA controlado para el comité de KIKE-NNN."""
 
 from dataclasses import dataclass
-from time import monotonic
+from time import monotonic, sleep
 
 from openai import (
     APIConnectionError,
     APITimeoutError,
     AuthenticationError,
+    InternalServerError,
     OpenAI,
     RateLimitError,
 )
@@ -143,15 +144,12 @@ class ClienteNvidia:
         except (
             APITimeoutError,
             APIConnectionError,
+            InternalServerError,
             RateLimitError,
         ) as error_principal:
             if respaldo is None:
-                return self._resultado_error(
-                    modelo=principal,
-                    inicio=inicio_total,
-                    error=error_principal,
-                )
-
+                sleep(5)
+                respaldo = principal
             try:
                 contenido, _ = self._consultar(
                     modelo=respaldo,
@@ -167,7 +165,7 @@ class ClienteNvidia:
                     modelo_utilizado=respaldo,
                     contenido=contenido,
                     duracion_segundos=monotonic() - inicio_total,
-                    uso_respaldo=True,
+                    uso_respaldo=respaldo != principal,
                     tipo_error=type(error_principal).__name__,
                     detalle_error="El modelo principal no respondió.",
                 )

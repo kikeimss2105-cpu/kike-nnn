@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 import httpx
-from openai import APITimeoutError
+from openai import APITimeoutError, InternalServerError
 
 from agents_kike_nnn.cliente_nvidia import ClienteNvidia
 
@@ -86,3 +86,53 @@ def test_arquitecto_usa_nemotron_ultra():
     assert resultado.contenido == "respuesta del arquitecto"
 
     consultar.assert_called_once()
+
+
+def test_flash_reintenta_una_vez_ante_error_503():
+    cliente = ClienteNvidia()
+
+    respuesta_503 = httpx.Response(
+        status_code=503,
+        request=httpx.Request(
+            "POST",
+            "https://example.invalid",
+        ),
+    )
+    error_503 = InternalServerError(
+        "Servidor saturado",
+        response=respuesta_503,
+        body={
+            "error": {
+                "message": "ResourceExhausted",
+            }
+        },
+    )
+
+    with (
+        patch(
+            "agents_kike_nnn.cliente_nvidia.sleep"
+        ) as esperar,
+        patch.object(
+            cliente,
+            "_consultar",
+            side_effect=[
+                error_503,
+                ("respuesta recuperada", 1.0),
+            ],
+        ) as consultar,
+    ):
+        resultado = cliente.consultar_programador(
+            sistema="sistema",
+            solicitud="solicitud",
+            preferir_pro=False,
+        )
+
+    assert resultado.correcto is True
+    assert resultado.contenido == "respuesta recuperada"
+    assert resultado.modelo_utilizado == (
+        cliente.configuracion.modelo_programador_respaldo
+    )
+    assert resultado.uso_respaldo is False
+    assert resultado.tipo_error == "InternalServerError"
+    assert consultar.call_count == 2
+    esperar.assert_called_once_with(5)
