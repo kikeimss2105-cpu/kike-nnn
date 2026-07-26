@@ -1,8 +1,10 @@
 """Interfaz de terminal para el comité consultivo KIKE-NNN."""
 
 import argparse
+from pathlib import Path
 
 from agents_kike_nnn.comite import ComiteKikeNNN
+from agents_kike_nnn.expedientes import cargar_expediente, guardar_expediente
 from agents_kike_nnn.contexto import (
     ContextoNoAutorizado,
     construir_contexto,
@@ -38,19 +40,14 @@ def leer_solicitud_multilinea() -> str:
 
 def crear_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description=(
-            "Comité consultivo y de solo lectura para KIKE-NNN."
-        )
+        description=("Comité consultivo y de solo lectura para KIKE-NNN.")
     )
 
     parser.add_argument(
         "--archivo",
         action="append",
         required=True,
-        help=(
-            "Archivo autorizado para el contexto. "
-            "Puede repetirse varias veces."
-        ),
+        help=("Archivo autorizado para el contexto. Puede repetirse varias veces."),
     )
 
     parser.add_argument(
@@ -59,6 +56,11 @@ def crear_parser() -> argparse.ArgumentParser:
             "Solicitud breve. Si se omite, se habilita entrada "
             "multilínea terminada con FIN."
         ),
+    )
+
+    parser.add_argument(
+        "--reanudar",
+        help="Ruta de un expediente incompleto para continuar.",
     )
 
     return parser
@@ -90,11 +92,17 @@ def main() -> int:
     argumentos = crear_parser().parse_args()
 
     try:
-        solicitud = (
-            argumentos.solicitud.strip()
-            if argumentos.solicitud
-            else leer_solicitud_multilinea()
-        )
+        expediente_previo = None
+
+        if argumentos.reanudar:
+            expediente_previo = cargar_expediente(Path(argumentos.reanudar))
+            solicitud = expediente_previo.solicitud
+        else:
+            solicitud = (
+                argumentos.solicitud.strip()
+                if argumentos.solicitud
+                else leer_solicitud_multilinea()
+            )
 
         contexto = construir_contexto(argumentos.archivo)
 
@@ -111,10 +119,20 @@ def main() -> int:
         print(f"- {archivo}")
 
     print("\nEl comité está trabajando...")
-    expediente = ComiteKikeNNN().evaluar(
-        solicitud=solicitud,
-        contexto_controlado=contexto,
-    )
+    comite = ComiteKikeNNN()
+
+    if expediente_previo is not None:
+        expediente = comite.reanudar(
+            expediente=expediente_previo,
+            contexto_controlado=contexto,
+        )
+    else:
+        expediente = comite.evaluar(
+            solicitud=solicitud,
+            contexto_controlado=contexto,
+        )
+    ruta_expediente = guardar_expediente(expediente)
+    print(f"\nExpediente guardado: {ruta_expediente}")
 
     imprimir_informe(
         "INFORME DEL ARQUITECTO",
@@ -134,9 +152,7 @@ def main() -> int:
         )
 
     print(f"\nESTADO DEL COMITÉ: {expediente.estado}")
-    print(
-        "Ningún archivo fue modificado por los agentes."
-    )
+    print("Ningún archivo fue modificado por los agentes.")
 
     return 0 if expediente.completo else 3
 

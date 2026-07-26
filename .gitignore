@@ -32,3 +32,4 @@ Thumbs.db
 ledger.json
 .env
 .env.*
+.agent_runs/

@@ -1,5 +1,5 @@
 from agents_kike_nnn.cliente_nvidia import ResultadoAgente
-from agents_kike_nnn.comite import ComiteKikeNNN
+from agents_kike_nnn.comite import ComiteKikeNNN, ExpedienteComite
 
 
 def resultado(correcto: bool, contenido: str = "") -> ResultadoAgente:
@@ -99,3 +99,52 @@ def test_comite_se_detiene_si_falla_programador():
     assert expediente.auditoria is None
     assert cliente.llamadas_programador == 1
     assert cliente.llamadas_arquitecto == 1
+
+
+def test_reanudar_no_repite_informe_del_arquitecto():
+    arquitectura_previa = resultado(
+        True,
+        "arquitectura ya aprobada",
+    )
+    expediente_previo = ExpedienteComite(
+        solicitud="Revisar Noticing.",
+        estado="INCOMPLETO_FALLO_PROGRAMADOR",
+        creado_en="2026-07-26T00:00:00+00:00",
+        arquitectura=arquitectura_previa,
+        programacion=resultado(False),
+        auditoria=None,
+    )
+
+    cliente = ClienteSimulado(
+        arquitecto=resultado(
+            True,
+            "no debe volver a solicitarse",
+        ),
+        programador=resultado(
+            True,
+            "propuesta recuperada",
+        ),
+        auditor=resultado(
+            True,
+            "APROBABLE_PARA_IMPLEMENTACION",
+        ),
+    )
+
+    # La siguiente llamada a Nemotron debe ser auditoría,
+    # no una nueva arquitectura.
+    cliente.llamadas_arquitecto = 1
+
+    reanudado = ComiteKikeNNN(cliente=cliente).reanudar(
+        expediente=expediente_previo,
+        contexto_controlado="Contexto autorizado.",
+    )
+
+    assert reanudado.estado == "COMPLETO"
+    assert reanudado.completo is True
+    assert reanudado.arquitectura is arquitectura_previa
+    assert reanudado.programacion is not None
+    assert reanudado.programacion.contenido == ("propuesta recuperada")
+    assert reanudado.auditoria is not None
+    assert reanudado.auditoria.contenido == ("APROBABLE_PARA_IMPLEMENTACION")
+    assert cliente.llamadas_programador == 1
+    assert cliente.llamadas_arquitecto == 2

@@ -54,9 +54,7 @@ class ComiteKikeNNN:
             raise ValueError("La solicitud no puede estar vacía.")
 
         if not contexto_controlado:
-            raise ValueError(
-                "El comité requiere contexto controlado."
-            )
+            raise ValueError("El comité requiere contexto controlado.")
 
         entrada_arquitecto = f"""
 SOLICITUD:
@@ -136,17 +134,92 @@ Emite exactamente uno de los veredictos permitidos.
             solicitud=entrada_auditor,
         )
 
-        estado = (
-            "COMPLETO"
-            if auditoria.correcto
-            else "INCOMPLETO_FALLO_AUDITOR"
-        )
+        estado = "COMPLETO" if auditoria.correcto else "INCOMPLETO_FALLO_AUDITOR"
 
         return ExpedienteComite(
             solicitud=solicitud,
             estado=estado,
             creado_en=creado_en,
             arquitectura=arquitectura,
+            programacion=programacion,
+            auditoria=auditoria,
+        )
+
+    def reanudar(
+        self,
+        expediente: ExpedienteComite,
+        contexto_controlado: str,
+    ) -> ExpedienteComite:
+        contexto_controlado = contexto_controlado.strip()
+
+        if not contexto_controlado:
+            raise ValueError("La reanudación requiere contexto controlado.")
+
+        if expediente.estado != "INCOMPLETO_FALLO_PROGRAMADOR":
+            raise ValueError("Solo puede reanudarse un fallo del programador.")
+
+        if not expediente.arquitectura.correcto:
+            raise ValueError("No existe una arquitectura válida para reanudar.")
+
+        entrada_programador = f"""
+SOLICITUD ORIGINAL:
+{expediente.solicitud}
+
+CONTEXTO CONTROLADO:
+{contexto_controlado}
+
+INFORME DEL ARQUITECTO:
+{expediente.arquitectura.contenido}
+
+Entrega una propuesta mínima y un plan de pruebas.
+No afirmes que modificaste archivos.
+""".strip()
+
+        programacion = self.cliente.consultar_programador(
+            sistema=ROL_PROGRAMADOR,
+            solicitud=entrada_programador,
+            preferir_pro=False,
+        )
+
+        if not programacion.correcto:
+            return ExpedienteComite(
+                solicitud=expediente.solicitud,
+                estado="INCOMPLETO_FALLO_PROGRAMADOR",
+                creado_en=expediente.creado_en,
+                arquitectura=expediente.arquitectura,
+                programacion=programacion,
+                auditoria=None,
+            )
+
+        entrada_auditor = f"""
+SOLICITUD ORIGINAL:
+{expediente.solicitud}
+
+CONTEXTO CONTROLADO:
+{contexto_controlado}
+
+INFORME DEL ARQUITECTO:
+{expediente.arquitectura.contenido}
+
+PROPUESTA DEL PROGRAMADOR:
+{programacion.contenido}
+
+Busca riesgos, contradicciones, falsos positivos y ruptura de Tanner.
+Emite exactamente uno de los veredictos permitidos.
+""".strip()
+
+        auditoria = self.cliente.consultar_arquitecto(
+            sistema=ROL_AUDITOR,
+            solicitud=entrada_auditor,
+        )
+
+        estado = "COMPLETO" if auditoria.correcto else "INCOMPLETO_FALLO_AUDITOR"
+
+        return ExpedienteComite(
+            solicitud=expediente.solicitud,
+            estado=estado,
+            creado_en=expediente.creado_en,
+            arquitectura=expediente.arquitectura,
             programacion=programacion,
             auditoria=auditoria,
         )
