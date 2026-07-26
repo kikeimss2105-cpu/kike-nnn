@@ -30,3 +30,5 @@ Thumbs.db
 
 # Ledger local — no va al repo
 ledger.json
+.env
+.env.*
