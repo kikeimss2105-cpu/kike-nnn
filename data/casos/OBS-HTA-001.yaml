@@ -1,0 +1,178 @@
+id: OBS-HTA-001
+version: "0.1.0"
+estado: borrador_clinico
+titulo: Gestante con hipertension grave y manifestaciones neurologicas
+
+proposito:
+  tipo: simulacion_educativa
+  modelo_pedagogico: Tanner
+  poblacion_objetivo: estudiantes_de_enfermeria
+  uso_clinico_real: false
+
+advertencia:
+  texto: >
+    Caso educativo. No sustituye protocolos institucionales,
+    valoracion profesional ni decisiones clinicas reales.
+
+paciente:
+  nombre_ficticio: Valeria
+  edad_gestacional_semanas: 36
+  contexto: area_de_valoracion_obstetrica
+
+escena_inicial:
+  texto: >
+    Valeria tiene 36 semanas de gestacion. Se muestra inquieta,
+    refiere cefalea intensa y molestia importante ante la luz.
+    Su pareja pregunta si el nacimiento ocurrira hoy.
+    La presion arterial registrada es de 165/115 mmHg,
+    la frecuencia respiratoria es de 20 rpm
+    y la temperatura es de 36.8 grados Celsius.
+
+tanner:
+  noticing:
+    objetivo: reconocer_y_priorizar_indicios
+    indicios:
+      - id: pa_165_115
+        texto: Presion arterial de 165/115 mmHg
+        categoria: critico
+        esperado: true
+        fundamento: hipertension_grave
+
+      - id: cefalea_intensa
+        texto: Cefalea intensa
+        categoria: critico
+        esperado: true
+        fundamento: manifestacion_neurologica_de_alarma
+
+      - id: fotofobia
+        texto: Molestia importante ante la luz
+        categoria: relevante
+        esperado: true
+        fundamento: sintoma_neurologico_que_requiere_valoracion
+
+      - id: gestacion_36
+        texto: Embarazo de 36 semanas
+        categoria: contexto_esencial
+        esperado: true
+        fundamento: contexto_obstetrico
+
+      - id: inquietud
+        texto: Paciente inquieta
+        categoria: complementario
+        esperado: true
+        fundamento: dato_inespecifico_que_requiere_contexto
+
+      - id: fr_20
+        texto: Frecuencia respiratoria de 20 rpm
+        categoria: dato_no_prioritario
+        esperado: false
+        fundamento: sin_alteracion_aparente_en_el_escenario
+
+      - id: temperatura_36_8
+        texto: Temperatura de 36.8 grados Celsius
+        categoria: dato_no_prioritario
+        esperado: false
+        fundamento: sin_alteracion_aparente_en_el_escenario
+
+      - id: pregunta_pareja
+        texto: La pareja pregunta si el nacimiento ocurrira hoy
+        categoria: contexto_no_prioritario
+        esperado: false
+        fundamento: requiere_respuesta_posterior_sin_desplazar_la_atencion_urgente
+
+  interpreting:
+    objetivo: relacionar_los_indicios_sin_exigir_frase_exacta
+    conceptos_minimos:
+      - hipertension_grave
+      - contexto_obstetrico
+      - sintomas_neurologicos_relevantes
+      - riesgo_de_deterioro_materno
+      - necesidad_de_evaluacion_y_atencion_urgente
+
+    relaciones_esperadas:
+      - hipertension_grave_con_manifestaciones_neurologicas
+      - embarazo_con_hipertension_grave_requiere_evaluacion_de_trastorno_hipertensivo
+      - signos_de_alarma_con_necesidad_de_escalamiento
+
+    no_exigir:
+      - diagnostico_medico_definitivo
+      - frase_literal
+      - vocabulario_unico
+
+  responding:
+    estado: pendiente_de_validacion_clinica
+    objetivo: priorizar_seguridad_escalamiento_y_vigilancia
+    dominios_preliminares:
+      - reconocer_urgencia
+      - solicitar_apoyo_del_equipo
+      - vigilancia_materna
+      - vigilancia_neurologica
+      - seguir_protocolo_institucional
+
+    acciones_farmacologicas:
+      estado: no_definidas
+      razon: requieren_fuente_protocolo_y_revision_clinica
+
+  reflecting:
+    objetivo: revalorar_la_respuesta_y_reconocer_omisiones
+    reflexion_en_la_accion:
+      - comparar_datos_iniciales_y_nuevos
+      - identificar_si_el_riesgo_persiste
+      - decidir_si_el_plan_necesita_ajuste
+
+    reflexion_sobre_la_accion:
+      - reconocer_indicios_omitidos
+      - explicar_consecuencias_del_retraso
+      - identificar_sesgos_del_razonamiento
+      - establecer_un_aprendizaje_concreto
+
+evaluacion:
+  puntuacion_numerica:
+    estado: no_definida
+    razon: requiere_validacion_pedagogica
+
+  registrar:
+    - indicios_presentados
+    - indicios_seleccionados
+    - indicios_omitidos
+    - distractores_seleccionados
+    - orden_de_seleccion
+    - interpretacion_del_estudiante
+    - decisiones_propuestas
+    - cambio_de_hipotesis
+    - revaloracion
+    - retroalimentacion_generada
+
+maquina_de_estados:
+  estado: pendiente
+  restriccion: no_crear_modelo_fisiologico_universal
+  enfoque: estados_discretos_validados_para_este_caso
+
+fuentes_clinicas:
+  - id: IMSS-020
+    institucion: Instituto Mexicano del Seguro Social
+    titulo: Prevencion diagnostico y tratamiento de la preeclampsia
+    uso: definicion_de_datos_de_alarma_y_manejo_oportuno
+
+  - id: IMSS-586
+    institucion: Instituto Mexicano del Seguro Social
+    titulo: Intervenciones de enfermeria en trastornos hipertensivos del embarazo
+    uso: futura_validacion_de_respuestas_de_enfermeria
+
+  - id: OMS-PREECLAMPSIA
+    institucion: Organizacion Mundial de la Salud
+    titulo: Preeclampsia
+    uso: sintomas_y_riesgos_generales
+
+  - id: ACOG-HTA
+    institucion: American College of Obstetricians and Gynecologists
+    titulo: Preeclampsia and high blood pressure during pregnancy
+    uso: umbral_de_hipertension_grave_y_datos_de_gravedad
+
+pendientes_clinicos:
+  - validar_redaccion_del_escenario
+  - confirmar_intervenciones_de_enfermeria
+  - definir_acciones_inseguras
+  - definir_estados_de_evolucion
+  - revisar_vinculacion_NANDA_NOC_NIC
+  - revisar_con_docente_o_experto_obstetrico
