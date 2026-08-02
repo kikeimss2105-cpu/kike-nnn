@@ -30,6 +30,7 @@ Thumbs.db
 
 # Ledger local — no va al repo
 ledger.json
-.env.agents
-.env.agents
+
+# Variables de entorno — nunca al repo (NVIDIA_TANNER_KEY, NVIDIA_AGENTS_KEY, etc.)
 .env
+.env.*
