@@ -3,3 +3,10 @@ pandas>=2.0.0
 openpyxl>=3.1.0
 python-docx>=1.0.0
 PyYAML>=6.0.0
+
+# Tanner Interpreting — cliente NVIDIA (engine/tanner/cliente_llm.py)
+# No usado por app.py todavía; requerido solo para uso local/manual
+# (scripts/probar_interpreting.py) hasta que Interpreting se conecte
+# a una interfaz real.
+openai>=1.0.0
+python-dotenv>=1.0.0

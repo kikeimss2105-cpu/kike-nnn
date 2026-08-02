@@ -138,6 +138,63 @@ tanner:
     assert "critico" in advertencias[0]
 
 
+def test_caso_sin_seccion_interpreting_usa_tuplas_vacias(tmp_path):
+    contenido = """
+id: TEST-SIN-INTERPRETING
+version: "0.1.0"
+estado: borrador_clinico
+titulo: Caso sin interpreting todavia
+proposito:
+  uso_clinico_real: false
+escena_inicial:
+  texto: Escena de prueba.
+tanner:
+  noticing:
+    indicios:
+      - id: dato_1
+        texto: Dato de ejemplo
+        categoria: critico
+        esperado: true
+        fundamento: ejemplo
+"""
+    archivo = tmp_path / "caso.yaml"
+    archivo.write_text(contenido, encoding="utf-8")
+
+    caso = cargar_caso_tanner(str(archivo))
+
+    assert caso.conceptos_minimos_interpreting == ()
+    assert caso.relaciones_esperadas_interpreting == ()
+
+
+def test_rechaza_interpreting_sin_relaciones_esperadas(tmp_path):
+    contenido = """
+id: TEST-INTERPRETING-INCOMPLETO
+version: "0.1.0"
+estado: borrador_clinico
+titulo: Caso con interpreting incompleto
+proposito:
+  uso_clinico_real: false
+escena_inicial:
+  texto: Escena de prueba.
+tanner:
+  noticing:
+    indicios:
+      - id: dato_1
+        texto: Dato de ejemplo
+        categoria: critico
+        esperado: true
+        fundamento: ejemplo
+  interpreting:
+    conceptos_minimos:
+      - concepto_a
+"""
+    archivo = tmp_path / "caso.yaml"
+    archivo.write_text(contenido, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Faltan campos obligatorios"):
+        cargar_caso_tanner(str(archivo))
+
+
 def test_advierte_si_no_hay_distractores(tmp_path):
     from engine.tanner.casos import advertencias_calidad_caso
 

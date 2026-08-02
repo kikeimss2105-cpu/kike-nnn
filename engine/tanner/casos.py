@@ -22,6 +22,8 @@ class CasoTanner:
     escena_inicial: str
     indicios_noticing: tuple[IndicioTanner, ...]
     uso_clinico_real: bool
+    conceptos_minimos_interpreting: tuple[str, ...] = ()
+    relaciones_esperadas_interpreting: tuple[str, ...] = ()
 
 
 def cargar_caso_tanner(ruta: str | Path) -> CasoTanner:
@@ -90,6 +92,32 @@ def cargar_caso_tanner(ruta: str | Path) -> CasoTanner:
     if not isinstance(uso_clinico_real, bool):
         raise ValueError("'uso_clinico_real' debe ser booleano.")
 
+    # tanner.interpreting es OPCIONAL a propósito: un caso puede tener
+    # Noticing validado sin que Interpreting esté redactado todavía
+    # (ver docs/ESTADO_REAL_V19.md — los casos avanzan fase por fase).
+    interpreting = tanner.get("interpreting")
+    conceptos_minimos_interpreting: tuple[str, ...] = ()
+    relaciones_esperadas_interpreting: tuple[str, ...] = ()
+
+    if interpreting is not None:
+        if not isinstance(interpreting, dict):
+            raise ValueError("El campo 'tanner.interpreting' debe ser un objeto.")
+
+        _validar_campos(
+            interpreting,
+            ("conceptos_minimos", "relaciones_esperadas"),
+            contexto="tanner.interpreting",
+        )
+
+        conceptos_minimos_interpreting = _tupla_de_textos(
+            interpreting["conceptos_minimos"],
+            "tanner.interpreting.conceptos_minimos",
+        )
+        relaciones_esperadas_interpreting = _tupla_de_textos(
+            interpreting["relaciones_esperadas"],
+            "tanner.interpreting.relaciones_esperadas",
+        )
+
     return CasoTanner(
         id=_texto_no_vacio(datos["id"], "id"),
         version=_texto_no_vacio(datos["version"], "version"),
@@ -98,6 +126,8 @@ def cargar_caso_tanner(ruta: str | Path) -> CasoTanner:
         escena_inicial=_texto_no_vacio(escena["texto"], "escena_inicial.texto"),
         indicios_noticing=indicios,
         uso_clinico_real=uso_clinico_real,
+        conceptos_minimos_interpreting=conceptos_minimos_interpreting,
+        relaciones_esperadas_interpreting=relaciones_esperadas_interpreting,
     )
 
 
@@ -196,3 +226,10 @@ def _texto_no_vacio(valor: Any, campo: str) -> str:
     if not isinstance(valor, str) or not valor.strip():
         raise ValueError(f"El campo '{campo}' debe contener texto.")
     return valor.strip()
+
+
+def _tupla_de_textos(valor: Any, campo: str) -> tuple[str, ...]:
+    if not isinstance(valor, list) or not valor:
+        raise ValueError(f"El campo '{campo}' debe ser una lista no vacía.")
+
+    return tuple(_texto_no_vacio(elemento, campo) for elemento in valor)
