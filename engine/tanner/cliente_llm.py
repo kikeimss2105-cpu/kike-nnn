@@ -12,10 +12,18 @@ Requiere un archivo .env.tanner en la raíz del proyecto con:
 
 Este archivo NUNCA debe subirse a git — confirma que .env.tanner está en
 .gitignore antes de crearlo.
+
+Reintentos: probar_interpreting.py (2026-08-02) mostró una tasa de falla
+transitoria real de 2 de 3 llamadas (529 Overloaded, luego timeout) —
+no es hipotético. Por eso este cliente reintenta hasta 3 veces con
+espera corta antes de reportar el fallo al estudiante. El SDK de OpenAI
+se deja en max_retries=0 a propósito: el reintento se controla aquí,
+explícitamente, para poder registrar cada intento.
 """
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,6 +34,9 @@ from engine.tanner.interpreting import RespuestaClienteLLM
 
 RAIZ_PROYECTO = Path(__file__).resolve().parent.parent.parent
 ARCHIVO_ENTORNO = RAIZ_PROYECTO / ".env.tanner"
+
+_INTENTOS_MAXIMOS = 3
+_ESPERA_ENTRE_INTENTOS_SEGUNDOS = 1.5
 
 _PROMPT_SISTEMA = """Eres un asistente que identifica, en el texto de un \
 estudiante de enfermería, qué conceptos clínicos y qué relaciones entre \
@@ -80,7 +91,15 @@ def cargar_configuracion_tanner() -> ConfiguracionTanner:
 
 
 class ClienteNvidiaInterpreting:
-    """Cliente real — hace una llamada de red real a NVIDIA en cada uso."""
+    """Cliente real — hace una llamada de red real a NVIDIA en cada uso.
+
+    Reintenta hasta _INTENTOS_MAXIMOS veces ante fallos transitorios
+    (timeouts, sobrecarga del servicio, errores de conexión) antes de
+    reportar el fallo. No reintenta si el modelo respondió pero con un
+    JSON malformado en TODOS los intentos — eso sí se reporta tal cual,
+    porque insistir indefinidamente ante una falla de formato consistente
+    no aporta nada.
+    """
 
     def __init__(self, configuracion: ConfiguracionTanner | None = None) -> None:
         self.configuracion = configuracion or cargar_configuracion_tanner()
@@ -102,34 +121,39 @@ class ClienteNvidiaInterpreting:
             f"Texto del estudiante:\n{texto_interpretacion}"
         )
 
-        try:
-            respuesta = self._cliente.chat.completions.create(
-                model=self.configuracion.modelo,
-                messages=[
-                    {"role": "system", "content": _PROMPT_SISTEMA},
-                    {"role": "user", "content": solicitud},
-                ],
-                timeout=30.0,
-                max_tokens=500,
-                temperature=0.0,
-            )
-            contenido = respuesta.choices[0].message.content or ""
-            datos = json.loads(contenido)
+        ultimo_error: str = "sin detalle disponible"
 
-            return RespuestaClienteLLM(
-                conceptos_detectados=tuple(datos.get("conceptos_detectados", [])),
-                relaciones_detectadas=tuple(datos.get("relaciones_detectadas", [])),
-                exitosa=True,
-            )
-        except json.JSONDecodeError as error:
-            return RespuestaClienteLLM(
-                conceptos_detectados=(), relaciones_detectadas=(),
-                exitosa=False,
-                detalle_error=f"El modelo no devolvió JSON válido: {error}",
-            )
-        except Exception as error:  # noqa: BLE001 — cualquier fallo de red/API se reporta, no se oculta
-            return RespuestaClienteLLM(
-                conceptos_detectados=(), relaciones_detectadas=(),
-                exitosa=False,
-                detalle_error=f"{type(error).__name__}: {error}",
-            )
+        for intento in range(1, _INTENTOS_MAXIMOS + 1):
+            try:
+                respuesta = self._cliente.chat.completions.create(
+                    model=self.configuracion.modelo,
+                    messages=[
+                        {"role": "system", "content": _PROMPT_SISTEMA},
+                        {"role": "user", "content": solicitud},
+                    ],
+                    timeout=30.0,
+                    max_tokens=500,
+                    temperature=0.0,
+                )
+                contenido = respuesta.choices[0].message.content or ""
+                datos = json.loads(contenido)
+
+                return RespuestaClienteLLM(
+                    conceptos_detectados=tuple(datos.get("conceptos_detectados", [])),
+                    relaciones_detectadas=tuple(datos.get("relaciones_detectadas", [])),
+                    exitosa=True,
+                )
+            except json.JSONDecodeError as error:
+                ultimo_error = f"El modelo no devolvió JSON válido: {error}"
+            except Exception as error:  # noqa: BLE001 — cualquier fallo de red/API se reporta, no se oculta
+                ultimo_error = f"{type(error).__name__}: {error}"
+
+            if intento < _INTENTOS_MAXIMOS:
+                time.sleep(_ESPERA_ENTRE_INTENTOS_SEGUNDOS)
+
+        return RespuestaClienteLLM(
+            conceptos_detectados=(),
+            relaciones_detectadas=(),
+            exitosa=False,
+            detalle_error=f"Tras {_INTENTOS_MAXIMOS} intentos: {ultimo_error}",
+        )
