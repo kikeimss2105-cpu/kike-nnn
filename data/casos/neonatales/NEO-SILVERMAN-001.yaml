@@ -1,0 +1,27 @@
+id: NEO-SILVERMAN-001
+escala: Silverman-Andersen
+version: "1.0.0"
+uso: educativo
+datos_presentados:
+  movimiento_toracoabdominal: 1
+  tiraje_intercostal: 1
+  retraccion_xifoidea: 1
+  aleteo_nasal: 1
+  quejido_espiratorio: 1
+indicios_criticos:
+  - Los cinco componentes fueron observados y puntuados.
+  - Un valor ausente impediría calcular el total.
+resultado_esperado:
+  total: 5
+  clasificacion: dificultad_respiratoria_moderada
+resultados_permitidos:
+  - Desglose explícito de cinco componentes con un punto cada uno.
+  - Clasificación moderada para 4 a 6 puntos.
+resultados_prohibidos:
+  - Confundir un componente no valorado con ausencia del signo.
+  - Generar recomendaciones terapéuticas automáticas.
+fundamento_de_pertinencia: >
+  Comprueba la suma determinista de signos de trabajo respiratorio y conserva
+  la diferencia entre ausencia observada y dato no valorado.
+fuentes:
+  - Silverman WA y Andersen DH, Pediatrics 1956.
