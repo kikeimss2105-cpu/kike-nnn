@@ -12,6 +12,7 @@ datos_presentados:
 indicios_criticos:
   - Capurro B usa cinco signos somáticos y la constante 204.
   - No deben incorporarse signos neurológicos de Capurro A.
+  - La formación del pezón pertenece a Capurro B, no a Capurro A.
 resultado_esperado:
   total_componentes: 43
   formula: (204 + 43) / 7
@@ -23,6 +24,8 @@ resultados_permitidos:
   - Mostrar los cinco componentes y la fórmula de Capurro B.
 resultados_prohibidos:
   - Usar la constante 200 de Capurro A.
+  - Trasladar la formación del pezón a los parámetros de Capurro A.
+  - Incorporar el signo de la bufanda o la caída de la cabeza en Capurro B.
   - Calcular si falta uno de los cinco signos somáticos.
 fundamento_de_pertinencia: >
   Distingue las variantes A y B, verifica la constante correcta y exige todos

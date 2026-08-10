@@ -340,9 +340,11 @@ with tab_braden:
             opciones_capurro = {
                 "forma_oreja": [None, 0, 8, 16, 24],
                 "tamano_glandula_mamaria": [None, 0, 5, 10, 15],
-                "formacion_pezon": [None, 0, 5, 10, 15],
                 "textura_piel": [None, 0, 5, 10, 15, 20],
+                "pliegues_plantares": [None, 0, 5, 10, 15, 20],
             }
+            if variante_capurro == "B":
+                opciones_capurro["formacion_pezon"] = [None, 0, 5, 10, 15]
             valores_capurro = {}
             for nombre, opciones in opciones_capurro.items():
                 valores_capurro[nombre] = st.selectbox(
@@ -360,13 +362,13 @@ with tab_braden:
                     "Caída de la cabeza", [None, 0, 4, 8, 12], key="neo_cabeza",
                     format_func=lambda valor: "No valorado" if valor is None else str(valor),
                 )
-                resultado_capurro = calcular_capurro_a(**valores_capurro, signo_bufanda=signo_bufanda, caida_cabeza=caida_cabeza)
-            else:
-                pliegues = st.selectbox(
-                    "Pliegues plantares", [None, 0, 5, 10, 15, 20], key="neo_pliegues",
-                    format_func=lambda valor: "No valorado" if valor is None else str(valor),
+                resultado_capurro = calcular_capurro_a(
+                    **valores_capurro,
+                    signo_bufanda=signo_bufanda,
+                    caida_cabeza=caida_cabeza,
                 )
-                resultado_capurro = calcular_capurro_b(**valores_capurro, pliegues_plantares=pliegues)
+            else:
+                resultado_capurro = calcular_capurro_b(**valores_capurro)
             if resultado_capurro.calculado:
                 st.info(
                     f"Capurro {variante_capurro}: {resultado_capurro.semanas_completas} semanas "
