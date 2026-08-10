@@ -1,0 +1,31 @@
+id: NEO-CAPURRO-001
+escala: Capurro
+version: "1.0.0"
+uso: educativo
+datos_presentados:
+  variante: B
+  forma_oreja: 8
+  tamano_glandula_mamaria: 10
+  formacion_pezon: 10
+  textura_piel: 10
+  pliegues_plantares: 5
+indicios_criticos:
+  - Capurro B usa cinco signos somáticos y la constante 204.
+  - No deben incorporarse signos neurológicos de Capurro A.
+resultado_esperado:
+  total_componentes: 43
+  formula: (204 + 43) / 7
+  edad_gestacional_semanas: 35.285714285714285
+  semanas_completas: 35
+  dias_adicionales: 2
+resultados_permitidos:
+  - Reportar 35 semanas y 2 días.
+  - Mostrar los cinco componentes y la fórmula de Capurro B.
+resultados_prohibidos:
+  - Usar la constante 200 de Capurro A.
+  - Calcular si falta uno de los cinco signos somáticos.
+fundamento_de_pertinencia: >
+  Distingue las variantes A y B, verifica la constante correcta y exige todos
+  los datos obligatorios antes de estimar edad gestacional.
+fuentes:
+  - Capurro H et al., A simplified method for diagnosis of gestational age, 1978.
