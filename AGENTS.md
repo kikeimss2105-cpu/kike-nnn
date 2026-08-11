@@ -77,32 +77,3 @@ Los comandos de validación obligatorios actuales son:
 ```bash
 python3 scripts/golden_runner.py
 python -m pytest -q
-```
-
-Nunca declarar una tarea terminada si cualquiera de estos comandos falla. Las pruebas Golden son una referencia de regresión: no modificar los esperados simplemente para hacer que una prueba pase. Las pruebas técnicas tampoco sustituyen la validación clínica.
-
-## Git y alcance de cambios
-
-- Nunca trabajar directamente en `main`.
-- Crear una rama por tarea.
-- No hacer merge automáticamente.
-- No hacer commit ni push salvo instrucción explícita del propietario.
-- No modificar Golden esperados únicamente para lograr una prueba verde.
-- Preservar cambios ajenos presentes en el árbol de trabajo.
-
-## Cierre de una tarea
-
-Antes de finalizar, ejecutar:
-
-```bash
-python3 scripts/golden_runner.py
-python -m pytest -q
-```
-
-El reporte final debe indicar:
-
-- archivos modificados;
-- comportamiento añadido o cambiado;
-- pruebas ejecutadas y sus resultados;
-- riesgos conocidos;
-- aspectos pendientes de revisión clínica.
