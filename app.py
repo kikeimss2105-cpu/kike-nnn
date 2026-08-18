@@ -16,6 +16,12 @@ from engine.obstetrico import generar_alertas_obstetricas, evaluar_rutas_obstetr
 from engine.resumen import generar_resumen_clinico, generar_alertas_clinicas, alertas_a_texto
 from engine.gordon import cargar_patrones_gordon, hallazgos_desde_respuestas
 from engine.texto import consolidar_hallazgos
+from engine.neonatal import (
+    calcular_apgar,
+    calcular_capurro_a,
+    calcular_capurro_b,
+    calcular_silverman,
+)
 
 st.set_page_config(page_title="KIKE-NNN | Apoyo al razonamiento clínico", layout="wide")
 
@@ -273,6 +279,105 @@ with tab_valoracion:
 with tab_braden:
     st.header("3. Escalas clínicas")
     st.info(f"Perfil seleccionado: {tipo_paciente}. {recomendaciones_por_tipo(tipo_paciente)}")
+
+    if tipo_paciente == "Recién nacido":
+        with st.expander("👶 Escalas neonatales deterministas", expanded=True):
+            st.caption(
+                "Selecciona 'No valorado' cuando el componente no fue observado. "
+                "El engine no calcula escalas incompletas ni sustituye datos faltantes por cero."
+            )
+
+            st.markdown("**APGAR**")
+            opciones_basicas = [None, 0, 1, 2]
+            columnas_apgar = st.columns(5)
+            etiquetas_apgar = ("Apariencia", "Pulso", "Gesticulación", "Actividad", "Respiración")
+            valores_apgar = [
+                columna.selectbox(
+                    etiqueta,
+                    opciones_basicas,
+                    format_func=lambda valor: "No valorado" if valor is None else str(valor),
+                    key=f"neo_apgar_{indice}",
+                )
+                for indice, (columna, etiqueta) in enumerate(zip(columnas_apgar, etiquetas_apgar))
+            ]
+            resultado_apgar = calcular_apgar(*valores_apgar)
+            if resultado_apgar.calculado:
+                st.info(f"APGAR: {resultado_apgar.total}/10 · {resultado_apgar.interpretacion}")
+                st.json(dict(resultado_apgar.desglose))
+            else:
+                st.warning("APGAR no calculado. Faltan: " + ", ".join(resultado_apgar.datos_faltantes))
+
+            st.markdown("**Silverman-Andersen**")
+            columnas_silverman = st.columns(5)
+            etiquetas_silverman = (
+                "Movimiento toracoabdominal", "Tiraje intercostal", "Retracción xifoidea",
+                "Aleteo nasal", "Quejido espiratorio",
+            )
+            valores_silverman = [
+                columna.selectbox(
+                    etiqueta,
+                    opciones_basicas,
+                    format_func=lambda valor: "No valorado" if valor is None else str(valor),
+                    key=f"neo_silverman_{indice}",
+                )
+                for indice, (columna, etiqueta) in enumerate(zip(columnas_silverman, etiquetas_silverman))
+            ]
+            resultado_silverman = calcular_silverman(*valores_silverman)
+            if resultado_silverman.calculado:
+                st.info(
+                    f"Silverman-Andersen: {resultado_silverman.total}/10 · "
+                    f"{resultado_silverman.interpretacion}"
+                )
+                st.json(dict(resultado_silverman.desglose))
+            else:
+                st.warning(
+                    "Silverman-Andersen no calculado. Faltan: "
+                    + ", ".join(resultado_silverman.datos_faltantes)
+                )
+
+            st.markdown("**Capurro A/B**")
+            variante_capurro = st.radio("Variante", ("A", "B"), horizontal=True)
+            opciones_capurro = {
+                "forma_oreja": [None, 0, 8, 16, 24],
+                "tamano_glandula_mamaria": [None, 0, 5, 10, 15],
+                "textura_piel": [None, 0, 5, 10, 15, 20],
+                "pliegues_plantares": [None, 0, 5, 10, 15, 20],
+            }
+            if variante_capurro == "B":
+                opciones_capurro["formacion_pezon"] = [None, 0, 5, 10, 15]
+            valores_capurro = {}
+            for nombre, opciones in opciones_capurro.items():
+                valores_capurro[nombre] = st.selectbox(
+                    nombre.replace("_", " ").capitalize(),
+                    opciones,
+                    format_func=lambda valor: "No valorado" if valor is None else str(valor),
+                    key=f"neo_capurro_{nombre}",
+                )
+            if variante_capurro == "A":
+                signo_bufanda = st.selectbox(
+                    "Signo de la bufanda", [None, 0, 6, 12, 18], key="neo_bufanda",
+                    format_func=lambda valor: "No valorado" if valor is None else str(valor),
+                )
+                caida_cabeza = st.selectbox(
+                    "Caída de la cabeza", [None, 0, 4, 8, 12], key="neo_cabeza",
+                    format_func=lambda valor: "No valorado" if valor is None else str(valor),
+                )
+                resultado_capurro = calcular_capurro_a(
+                    **valores_capurro,
+                    signo_bufanda=signo_bufanda,
+                    caida_cabeza=caida_cabeza,
+                )
+            else:
+                resultado_capurro = calcular_capurro_b(**valores_capurro)
+            if resultado_capurro.calculado:
+                st.info(
+                    f"Capurro {variante_capurro}: {resultado_capurro.semanas_completas} semanas "
+                    f"y {resultado_capurro.dias_adicionales} días · {resultado_capurro.formula}"
+                )
+                st.json(dict(resultado_capurro.desglose))
+            else:
+                st.warning("Capurro no calculado. Faltan: " + ", ".join(resultado_capurro.datos_faltantes))
+
     st.subheader("Módulo respiratorio avanzado")
     respiratorio_valorado = st.toggle("✅ Incluir módulo respiratorio en la valoración", value=False,
                                        help="Activa esta escala solo si valoraste SpO₂ y FR en el paciente.")

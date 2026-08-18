@@ -1,0 +1,27 @@
+id: NEO-APGAR-001
+escala: APGAR
+version: "1.0.0"
+uso: educativo
+datos_presentados:
+  apariencia: 1
+  pulso: 2
+  gesticulacion: 2
+  actividad: 2
+  respiracion: 1
+indicios_criticos:
+  - Los cinco componentes fueron valorados y ninguno debe inferirse.
+  - La interpretación corresponde al puntaje APGAR a los 5 minutos.
+resultado_esperado:
+  total: 8
+  interpretacion: tranquilizador
+resultados_permitidos:
+  - Desglose explícito de 1 + 2 + 2 + 2 + 1.
+  - Resultado tranquilizador de 7 a 10 a los 5 minutos.
+resultados_prohibidos:
+  - Diagnosticar asfixia con APGAR aislado.
+  - Usar APGAR para decidir el inicio de reanimación.
+fundamento_de_pertinencia: >
+  Verifica suma, trazabilidad e interpretación educativa de una valoración
+  completa sin convertir el resultado en diagnóstico ni pronóstico individual.
+fuentes:
+  - American Academy of Pediatrics y ACOG, The Apgar Score, Pediatrics 2015.
