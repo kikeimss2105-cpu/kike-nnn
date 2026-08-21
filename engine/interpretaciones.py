@@ -121,12 +121,14 @@ def recomendaciones_por_tipo(tipo_paciente):
 
 def interpretar_pa_obstetrica(pas, pad, semanas_gestacion):
     """Interpretación educativa. No diagnostica; orienta vigilancia obstétrica."""
-    if pas >= 160 or pad >= 110:
+    if pas is None and pad is None:
+        return "PA no valorada: faltan presión sistólica y diastólica"
+    if (pas is not None and pas >= 160) or (pad is not None and pad >= 110):
         return "PA en rango severo: requiere valoración urgente según protocolo obstétrico"
-    if pas >= 140 or pad >= 90:
-        if semanas_gestacion >= 20:
+    if (pas is not None and pas >= 140) or (pad is not None and pad >= 90):
+        if semanas_gestacion is not None and semanas_gestacion >= 20:
             return "PA elevada desde semana 20 o más: vigilar datos compatibles con trastorno hipertensivo del embarazo"
         return "PA elevada en embarazo: requiere vigilancia y validación clínica"
-    if pas >= 130 or pad >= 80:
-        return "PA en vigilancia: repetir medición y valorar contexto clínico"
-    return "PA dentro de rango esperado por este tamizaje"
+    if pas is None or pad is None:
+        return "PA parcialmente valorada: falta una de las mediciones"
+    return "Sin umbral de PA elevada en este tamizaje"

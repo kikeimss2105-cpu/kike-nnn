@@ -2,9 +2,110 @@
 Módulo extraído de app.py v19 (KIKE-NNN) como parte de la separación
 Datos -> Hallazgos -> Riesgos -> Diagnosticos -> NOC/NIC.
 
-Lógica de negocio verificada byte-a-byte contra el comportamiento original
-mediante tests/test_golden.py antes de sustituir el código en app.py.
+Las reglas son educativas, reproducibles y no emiten diagnósticos definitivos.
+Los datos ausentes permanecen como ``None`` y nunca se convierten en cero.
 """
+
+
+def _alcanza(valor, umbral):
+    return valor is not None and valor >= umbral
+
+
+def _menor_que(valor, umbral):
+    return valor is not None and valor < umbral
+
+
+def _pa_texto(pas, pad):
+    sistolica = "no valorada" if pas is None else str(pas)
+    diastolica = "no valorada" if pad is None else str(pad)
+    return f"{sistolica}/{diastolica}"
+
+
+def extraer_hallazgos_obstetricos(
+    tipo_paciente,
+    semanas_gestacion=None,
+    pas=None,
+    pad=None,
+    temperatura=None,
+    cefalea_intensa=False,
+    fosfenos=False,
+    acufenos=False,
+    epigastralgia=False,
+    edema_cara_manos=False,
+    convulsiones=False,
+    sangrado_vaginal=False,
+    salida_liquido=False,
+    liquido_fetido=False,
+    liquido_verdoso=False,
+    dolor_abdominal_intenso=False,
+    contracciones_antes_termino=False,
+    disminucion_mov_fetales=False,
+    movimientos_fetales="No aplica / no valorado",
+    nausea_vomito_persistente=False,
+    disuria_obstetrica=False,
+):
+    """Normaliza solo datos observados y riesgos explícitos, sin diagnosticar."""
+    if tipo_paciente != "Obstétrico":
+        return []
+
+    hallazgos = ["embarazo", "paciente obstétrica", "vigilancia obstétrica"]
+    contexto_gestacional = _alcanza(semanas_gestacion, 20)
+    pa_elevada = _alcanza(pas, 140) or _alcanza(pad, 90)
+    pa_severa = _alcanza(pas, 160) or _alcanza(pad, 110)
+
+    if contexto_gestacional:
+        hallazgos.append("embarazo mayor de 20 semanas")
+    if pa_elevada:
+        hallazgos.append("presión arterial elevada")
+        if contexto_gestacional:
+            hallazgos.append("requiere evaluación de trastorno hipertensivo del embarazo")
+    if pa_severa:
+        hallazgos.extend(["hipertensión severa", "prioridad alta", "signos de alarma obstétrica"])
+    if cefalea_intensa:
+        hallazgos.extend(["cefalea intensa", "signos de alarma obstétrica"])
+    if fosfenos:
+        hallazgos.extend(["fosfenos", "visión borrosa", "signos de alarma obstétrica"])
+    if acufenos:
+        hallazgos.extend(["acúfenos", "zumbido de oídos", "signos de alarma obstétrica"])
+    if epigastralgia:
+        hallazgos.extend(["epigastralgia", "dolor epigástrico", "signos de alarma obstétrica"])
+    if edema_cara_manos:
+        hallazgos.extend(["edema", "edema de cara", "edema de manos"])
+    if convulsiones:
+        hallazgos.extend(["convulsiones", "alteración neurológica", "prioridad alta"])
+    if sangrado_vaginal:
+        hallazgos.extend(["sangrado vaginal", "riesgo de sangrado", "prioridad alta"])
+    if salida_liquido:
+        hallazgos.extend([
+            "salida de líquido transvaginal",
+            "sospecha de ruptura de membranas",
+            "requiere valoración obstétrica",
+        ])
+    if liquido_fetido:
+        hallazgos.extend(["líquido fétido", "posible riesgo de infección"])
+    if liquido_verdoso:
+        hallazgos.extend(["líquido verdoso", "requiere valoración de bienestar fetal"])
+    if _alcanza(temperatura, 38):
+        hallazgos.extend(["fiebre", "temperatura elevada", "posible riesgo de infección"])
+    if dolor_abdominal_intenso:
+        hallazgos.extend(["dolor abdominal intenso", "dolor agudo", "prioridad alta"])
+    if contracciones_antes_termino:
+        hallazgos.append("contracciones uterinas")
+        if _menor_que(semanas_gestacion, 37):
+            hallazgos.append("contracciones antes de término")
+    movimientos_alterados = disminucion_mov_fetales or movimientos_fetales in {"Disminuidos", "Ausentes"}
+    if contexto_gestacional and movimientos_alterados:
+        hallazgos.extend([
+            "disminución de movimientos fetales",
+            "requiere valoración de bienestar fetal",
+            "prioridad alta",
+        ])
+    if nausea_vomito_persistente:
+        hallazgos.extend(["náusea", "vómito persistente", "requiere valoración de hidratación"])
+    if disuria_obstetrica:
+        hallazgos.extend(["disuria", "dolor al orinar", "posible riesgo urinario"])
+
+    return list(dict.fromkeys(hallazgos))
 
 
 def generar_alertas_obstetricas(
@@ -36,19 +137,23 @@ def generar_alertas_obstetricas(
 
     datos_neuro = cefalea_intensa or fosfenos or acufenos or epigastralgia or edema_cara_manos
 
-    if pas >= 160 or pad >= 110:
+    pa_severa = _alcanza(pas, 160) or _alcanza(pad, 110)
+    pa_elevada = _alcanza(pas, 140) or _alcanza(pad, 90)
+
+    if pa_severa:
         alertas.append({
             "Nivel": "Alta",
             "Área": "Obstétrico / hipertensión",
-            "Alerta": f"PA {pas}/{pad} mmHg en rango severo.",
+            "Alerta": f"PA {_pa_texto(pas, pad)} mmHg en rango severo.",
             "Acción sugerida": "Repetir medición si procede, mantener vigilancia, valorar datos de severidad y notificar de inmediato según protocolo."
         })
-    elif pas >= 140 or pad >= 90:
-        nivel = "Alta" if semanas_gestacion >= 20 and datos_neuro else "Media"
+    elif pa_elevada:
+        contexto_gestacional = _alcanza(semanas_gestacion, 20)
+        nivel = "Alta" if contexto_gestacional and datos_neuro else "Media"
         alertas.append({
             "Nivel": nivel,
             "Área": "Obstétrico / hipertensión",
-            "Alerta": f"PA {pas}/{pad} mmHg elevada en paciente obstétrica.",
+            "Alerta": f"PA {_pa_texto(pas, pad)} mmHg elevada en paciente obstétrica.",
             "Acción sugerida": "Valorar cefalea, fosfenos, acúfenos, epigastralgia, edema, proteinuria si está indicada y protocolo institucional."
         })
 
@@ -77,20 +182,28 @@ def generar_alertas_obstetricas(
         })
 
     if salida_liquido:
-        nivel = "Alta" if semanas_gestacion < 37 else "Media"
+        nivel = "Alta" if _menor_que(semanas_gestacion, 37) else "Media"
         alertas.append({
             "Nivel": nivel,
             "Área": "Obstétrico / salida de líquido",
-            "Alerta": "Salida de líquido transvaginal compatible con posible ruptura de membranas.",
+            "Alerta": "Salida de líquido transvaginal: sospecha de ruptura de membranas que requiere valoración.",
             "Acción sugerida": "Registrar hora, color, olor, cantidad, fiebre, dolor, movimientos fetales y referir/avisar según protocolo."
         })
 
-    if liquido_fetido or liquido_verdoso or temperatura >= 38:
+    fiebre_medida = _alcanza(temperatura, 38)
+    if liquido_fetido or liquido_verdoso or fiebre_medida:
+        datos_registrados = []
+        if fiebre_medida:
+            datos_registrados.append(f"fiebre {temperatura}°C")
+        if liquido_fetido:
+            datos_registrados.append("líquido fétido")
+        if liquido_verdoso:
+            datos_registrados.append("líquido verdoso")
         alertas.append({
             "Nivel": "Alta",
-            "Área": "Obstétrico / infección o sufrimiento fetal",
-            "Alerta": "Fiebre, líquido fétido o líquido verdoso registrado.",
-            "Acción sugerida": "Vigilar signos de infección, estado materno-fetal y notificar según protocolo."
+            "Área": "Obstétrico / riesgo infeccioso o bienestar fetal",
+            "Alerta": f"Datos de alarma registrados: {', '.join(datos_registrados)}.",
+            "Acción sugerida": "Valorar posible riesgo infeccioso y estado materno-fetal; notificar según protocolo."
         })
 
     if dolor_abdominal_intenso:
@@ -101,7 +214,7 @@ def generar_alertas_obstetricas(
             "Acción sugerida": "Valorar sangrado, dinámica uterina, signos vitales, edad gestacional y protocolo de urgencia obstétrica."
         })
 
-    if contracciones_antes_termino and semanas_gestacion < 37:
+    if contracciones_antes_termino and _menor_que(semanas_gestacion, 37):
         alertas.append({
             "Nivel": "Media",
             "Área": "Obstétrico / parto pretérmino",
@@ -109,7 +222,7 @@ def generar_alertas_obstetricas(
             "Acción sugerida": "Valorar frecuencia, duración, dolor, salida de líquido, sangrado y protocolo de amenaza de parto pretérmino."
         })
 
-    if disminucion_mov_fetales and semanas_gestacion >= 20:
+    if disminucion_mov_fetales and _alcanza(semanas_gestacion, 20):
         alertas.append({
             "Nivel": "Alta",
             "Área": "Obstétrico / bienestar fetal",
@@ -136,8 +249,8 @@ def generar_alertas_obstetricas(
     return alertas
 
 
-def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=0, pa_sistolica=0, pa_diastolica=0,
-                              temperatura=36.5, cefalea=False, fosfenos=False, acufenos=False,
+def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=None, pa_sistolica=None, pa_diastolica=None,
+                              temperatura=None, cefalea=False, fosfenos=False, acufenos=False,
                               epigastralgia=False, edema=False, convulsiones=False,
                               sangrado=False, salida_liquido=False, liquido_fetido=False,
                               liquido_verdoso=False, dolor_abdominal=False,
@@ -171,13 +284,16 @@ def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=0, pa_sistolica=0
     # =========================
     datos_hipertensivos = []
 
-    pa_elevada = semanas_gestacion >= 20 and (pa_sistolica >= 140 or pa_diastolica >= 90)
-    pa_severa = pa_sistolica >= 160 or pa_diastolica >= 110
+    contexto_gestacional = _alcanza(semanas_gestacion, 20)
+    pa_elevada = contexto_gestacional and (
+        _alcanza(pa_sistolica, 140) or _alcanza(pa_diastolica, 90)
+    )
+    pa_severa = _alcanza(pa_sistolica, 160) or _alcanza(pa_diastolica, 110)
 
     if pa_elevada:
         datos_hipertensivos.append(f"PA {pa_sistolica}/{pa_diastolica} desde semana 20 o más")
     elif tiene("hipertensión", "hipertension", "preeclampsia"):
-        datos_hipertensivos.append("hallazgos compatibles con hipertensión/preeclampsia")
+        datos_hipertensivos.append("hallazgo referido de trastorno hipertensivo")
 
     if pa_severa:
         datos_hipertensivos.append("PA severa")
@@ -203,47 +319,58 @@ def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=0, pa_sistolica=0
         datos_hipertensivos = list(dict.fromkeys(datos_hipertensivos))
 
         rutas.append({
-            "Ruta": "Hipertensiva / preeclampsia",
+            "Ruta": "Evaluación de trastorno hipertensivo",
             "Nivel": nivel,
             "Datos activadores": ", ".join(datos_hipertensivos),
             "Acción educativa": "Valorar signos de severidad, proteinuria si procede, bienestar fetal y activar protocolo institucional."
         })
-        datos.extend(["hipertensión", "preeclampsia", "signos de alarma obstétrica", "riesgo de alteración de la díada materno-fetal"])
+        if contexto_gestacional:
+            datos.append("evaluación de trastorno hipertensivo del embarazo")
+        else:
+            datos.append("evaluación obstétrica por presión arterial o signos de alarma")
+        datos.extend(["signos de alarma obstétrica", "requiere valoración obstétrica"])
 
     # =========================
     # RUTA RPM / INFECCIÓN
     # =========================
     datos_rpm = []
-    if salida_liquido or tiene("salida de líquido", "salida de liquido", "ruptura de membranas", "rpm"):
+    sospecha_rpm = salida_liquido or tiene(
+        "salida de líquido", "salida de liquido", "ruptura de membranas", "rpm"
+    )
+    if sospecha_rpm:
         datos_rpm.append("salida de líquido transvaginal")
     if liquido_fetido or tiene("líquido fétido", "liquido fetido", "mal olor"):
         datos_rpm.append("líquido fétido")
     if liquido_verdoso or tiene("líquido verdoso", "liquido verdoso", "meconio"):
         datos_rpm.append("líquido verdoso")
-    if temperatura >= 38 or tiene("fiebre"):
-        datos_rpm.append(f"fiebre {temperatura}°C" if temperatura >= 38 else "fiebre")
-    if dolor_abdominal or tiene("dolor uterino", "dolor abdominal"):
-        datos_rpm.append("dolor abdominal/uterino")
+    fiebre_medida = _alcanza(temperatura, 38)
+    if fiebre_medida or tiene("fiebre"):
+        datos_rpm.append(f"fiebre {temperatura}°C" if fiebre_medida else "fiebre referida")
 
     if datos_rpm:
         nivel = "Alta" if (
-            liquido_fetido or temperatura >= 38 or liquido_verdoso or
+            liquido_fetido or fiebre_medida or liquido_verdoso or
             tiene("líquido fétido", "liquido fetido", "fiebre", "líquido verdoso", "liquido verdoso")
         ) else "Media"
         datos_rpm = list(dict.fromkeys(datos_rpm))
+        nombre_ruta = (
+            "Sospecha de ruptura de membranas / riesgo infeccioso"
+            if sospecha_rpm
+            else "Evaluación de riesgo infeccioso obstétrico"
+        )
         rutas.append({
-            "Ruta": "RPM / infección",
+            "Ruta": nombre_ruta,
             "Nivel": nivel,
             "Datos activadores": ", ".join(datos_rpm),
-            "Acción educativa": "Vigilar temperatura, características del líquido, dolor, bienestar fetal y riesgo infeccioso según protocolo."
+            "Acción educativa": "Valorar posible ruptura de membranas, temperatura, características del líquido, dolor, bienestar fetal y posible riesgo infeccioso según protocolo."
         })
-        datos.extend([
-            "salida de líquido transvaginal",
-            "ruptura de membranas",
-            "riesgo de infección",
-            "vigilancia obstétrica",
-            "riesgo de infección materno-fetal"
-        ])
+        if sospecha_rpm:
+            datos.extend(["salida de líquido transvaginal", "sospecha de ruptura de membranas"])
+        if liquido_fetido or liquido_verdoso or fiebre_medida or tiene(
+            "líquido fétido", "liquido fetido", "fiebre", "líquido verdoso", "liquido verdoso"
+        ):
+            datos.append("posible riesgo de infección")
+        datos.extend(["vigilancia obstétrica", "requiere valoración obstétrica"])
 
     # =========================
     # RUTA HEMORRÁGICA
@@ -255,7 +382,10 @@ def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=0, pa_sistolica=0
         datos_hemorragicos.append("sangrado vaginal")
         if dolor_abdominal or tiene("dolor abdominal", "dolor uterino"):
             datos_hemorragicos.append("dolor abdominal")
-        if (contracciones and semanas_gestacion < 37) or tiene("contracciones antes de término", "contracciones antes de termino"):
+        contracciones_pretermino = _menor_que(semanas_gestacion, 37) and (
+            contracciones or tiene("contracciones antes de término", "contracciones antes de termino")
+        )
+        if contracciones_pretermino:
             datos_hemorragicos.append("contracciones antes de término")
 
         datos_hemorragicos = list(dict.fromkeys(datos_hemorragicos))
@@ -279,7 +409,10 @@ def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=0, pa_sistolica=0
     datos_dolor = []
     if dolor_abdominal or tiene("dolor abdominal", "dolor uterino"):
         datos_dolor.append("dolor abdominal/uterino")
-    if (contracciones and semanas_gestacion < 37) or tiene("contracciones antes de término", "contracciones antes de termino"):
+    contracciones_pretermino = _menor_que(semanas_gestacion, 37) and (
+        contracciones or tiene("contracciones antes de término", "contracciones antes de termino")
+    )
+    if contracciones_pretermino:
         datos_dolor.append("contracciones antes de término")
 
     if datos_dolor and not sangrado_real:
@@ -302,9 +435,10 @@ def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=0, pa_sistolica=0
     # RUTA BIENESTAR FETAL
     # =========================
     datos_fetales = []
-    if movimientos_fetales in ["Disminuidos", "Ausentes"]:
+    edad_para_movimientos = _alcanza(semanas_gestacion, 20)
+    if edad_para_movimientos and movimientos_fetales in ["Disminuidos", "Ausentes"]:
         datos_fetales.append(f"movimientos fetales {movimientos_fetales.lower()}")
-    if tiene("disminución de movimientos fetales", "disminucion de movimientos fetales", "movimientos fetales disminuidos", "movimientos fetales ausentes"):
+    if edad_para_movimientos and tiene("disminución de movimientos fetales", "disminucion de movimientos fetales", "movimientos fetales disminuidos", "movimientos fetales ausentes"):
         datos_fetales.append("movimientos fetales alterados")
 
     if datos_fetales:
@@ -318,8 +452,8 @@ def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=0, pa_sistolica=0
         datos.extend([
             "disminución de movimientos fetales",
             "vigilancia fetal",
-            "estado fetal anteparto",
-            "riesgo de alteración de la díada materno-fetal"
+            "requiere valoración de bienestar fetal",
+            "signos de alarma obstétrica"
         ])
 
     if not rutas:

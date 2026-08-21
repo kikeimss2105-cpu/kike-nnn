@@ -85,7 +85,7 @@ check("fr obstétrico 26", "Taquipnea: valorar signos de alarma obstétrica", in
 
 check("pa obstétrica severa", "PA en rango severo: requiere valoración urgente según protocolo obstétrico",
       interpretar_pa_obstetrica(165, 112, 30))
-check("pa obstétrica normal", "PA dentro de rango esperado por este tamizaje",
+check("pa obstétrica sin umbral de elevación", "Sin umbral de PA elevada en este tamizaje",
       interpretar_pa_obstetrica(110, 70, 30))
 
 check("nivel_confianza alta", "Alta", nivel_confianza(12))
@@ -113,19 +113,19 @@ casos_obst = [
     (dict(tipo_paciente="Adulto"), [], "No aplica"),
     (dict(tipo_paciente="Obstétrico", semanas_gestacion=25, pa_sistolica=150, pa_diastolica=95,
           cefalea=True, fosfenos=True),
-     ['hipertensión', 'preeclampsia', 'signos de alarma obstétrica', 'riesgo de alteración de la díada materno-fetal'],
-     '[Alta] Hipertensiva / preeclampsia: PA 150/95 desde semana 20 o más, cefalea, fosfenos/visión borrosa. '
+     ['evaluación de trastorno hipertensivo del embarazo', 'signos de alarma obstétrica', 'requiere valoración obstétrica'],
+     '[Alta] Evaluación de trastorno hipertensivo: PA 150/95 desde semana 20 o más, cefalea, fosfenos/visión borrosa. '
      'Acción educativa: Valorar signos de severidad, proteinuria si procede, bienestar fetal y activar protocolo institucional.'),
     (dict(tipo_paciente="Obstétrico", semanas_gestacion=25, pa_sistolica=165, pa_diastolica=115, convulsiones=True),
-     ['hipertensión', 'preeclampsia', 'signos de alarma obstétrica', 'riesgo de alteración de la díada materno-fetal'],
-     '[Crítica] Hipertensiva / preeclampsia: PA 165/115 desde semana 20 o más, PA severa, convulsiones. '
+     ['evaluación de trastorno hipertensivo del embarazo', 'signos de alarma obstétrica', 'requiere valoración obstétrica'],
+     '[Crítica] Evaluación de trastorno hipertensivo: PA 165/115 desde semana 20 o más, PA severa, convulsiones. '
      'Acción educativa: Valorar signos de severidad, proteinuria si procede, bienestar fetal y activar protocolo institucional.'),
     (dict(tipo_paciente="Obstétrico", semanas_gestacion=32, salida_liquido=True, liquido_fetido=True, temperatura=38.5),
-     ['salida de líquido transvaginal', 'ruptura de membranas', 'riesgo de infección', 'vigilancia obstétrica', 'riesgo de infección materno-fetal'],
-     '[Alta] RPM / infección: salida de líquido transvaginal, líquido fétido, fiebre 38.5°C. '
-     'Acción educativa: Vigilar temperatura, características del líquido, dolor, bienestar fetal y riesgo infeccioso según protocolo.'),
+     ['salida de líquido transvaginal', 'sospecha de ruptura de membranas', 'posible riesgo de infección', 'vigilancia obstétrica', 'requiere valoración obstétrica'],
+     '[Alta] Sospecha de ruptura de membranas / riesgo infeccioso: salida de líquido transvaginal, líquido fétido, fiebre 38.5°C. '
+     'Acción educativa: Valorar posible ruptura de membranas, temperatura, características del líquido, dolor, bienestar fetal y posible riesgo infeccioso según protocolo.'),
     (dict(tipo_paciente="Obstétrico", semanas_gestacion=32, movimientos_fetales="Ausentes"),
-     ['disminución de movimientos fetales', 'vigilancia fetal', 'estado fetal anteparto', 'riesgo de alteración de la díada materno-fetal'],
+     ['disminución de movimientos fetales', 'vigilancia fetal', 'requiere valoración de bienestar fetal', 'signos de alarma obstétrica'],
      '[Alta] Bienestar fetal: movimientos fetales ausentes. '
      'Acción educativa: Registrar movimientos fetales referidos y solicitar valoración de bienestar fetal según protocolo.'),
 ]

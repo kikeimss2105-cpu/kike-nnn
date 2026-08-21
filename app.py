@@ -12,7 +12,11 @@ from engine.interpretaciones import (
     interpretar_riesgo_caidas, interpretar_spo2, interpretar_fr_adulto,
     interpretar_fr_por_tipo, recomendaciones_por_tipo, interpretar_pa_obstetrica,
 )
-from engine.obstetrico import generar_alertas_obstetricas, evaluar_rutas_obstetricas
+from engine.obstetrico import (
+    evaluar_rutas_obstetricas,
+    extraer_hallazgos_obstetricos,
+    generar_alertas_obstetricas,
+)
 from engine.resumen import generar_resumen_clinico, generar_alertas_clinicas, alertas_a_texto
 from engine.gordon import cargar_patrones_gordon, hallazgos_desde_respuestas
 from engine.texto import consolidar_hallazgos
@@ -538,22 +542,24 @@ with tab_braden:
         col_o1, col_o2, col_o3 = st.columns(3)
 
         with col_o1:
-            semanas_gestacion = st.number_input("Semanas de gestación", min_value=0, max_value=42, value=20, step=1)
-            pas = st.number_input("Presión sistólica (mmHg)", min_value=60, max_value=240, value=120, step=1)
+            semanas_gestacion = st.number_input("Semanas de gestación", min_value=0, max_value=42, value=None, step=1, placeholder="No valorado")
+            pas = st.number_input("Presión sistólica (mmHg)", min_value=60, max_value=240, value=None, step=1, placeholder="No valorada")
 
         with col_o2:
             gestas = st.number_input("Gestas", min_value=0, max_value=20, value=1, step=1)
-            pad = st.number_input("Presión diastólica (mmHg)", min_value=30, max_value=160, value=80, step=1)
+            pad = st.number_input("Presión diastólica (mmHg)", min_value=30, max_value=160, value=None, step=1, placeholder="No valorada")
 
         with col_o3:
-            temperatura = st.number_input("Temperatura (°C)", min_value=34.0, max_value=42.0, value=36.5, step=0.1)
+            temperatura = st.number_input("Temperatura (°C)", min_value=34.0, max_value=42.0, value=None, step=0.1, placeholder="No valorada")
             movimientos_fetales = st.selectbox(
                 "Movimientos fetales referidos",
                 ["No aplica / no valorado", "Presentes", "Disminuidos", "Ausentes"]
             )
 
         interpretacion_pa_obstetrica = interpretar_pa_obstetrica(pas, pad, semanas_gestacion)
-        st.info(f"PA obstétrica: {pas}/{pad} mmHg | {interpretacion_pa_obstetrica}")
+        pas_texto = "No valorada" if pas is None else str(pas)
+        pad_texto = "No valorada" if pad is None else str(pad)
+        st.info(f"PA obstétrica: {pas_texto}/{pad_texto} mmHg | {interpretacion_pa_obstetrica}")
 
         col_o4, col_o5 = st.columns(2)
 
@@ -581,11 +587,11 @@ with tab_braden:
         st.caption("Datos de alarma: sangrado, salida de líquido, cefalea intensa, fosfenos, acúfenos, edema, dolor abdominal intenso, fiebre y disminución de movimientos fetales requieren valoración según protocolo.")
 
     else:
-        semanas_gestacion = 0
+        semanas_gestacion = None
         gestas = 0
-        pas = 120
-        pad = 80
-        temperatura = 36.5
+        pas = None
+        pad = None
+        temperatura = None
         movimientos_fetales = "No aplica / no valorado"
         interpretacion_pa_obstetrica = "No aplica: perfil no obstétrico"
         cefalea_intensa = False
@@ -707,47 +713,29 @@ if confusion_caidas:
 if hipotension_ortostatica:
     hallazgos_caidas.append("hipotensión ortostática")
 
-hallazgos_obstetricos = []
-if tipo_paciente == "Obstétrico":
-    hallazgos_obstetricos += ["embarazo", "paciente obstétrica", "vigilancia obstétrica"]
-    if semanas_gestacion >= 20:
-        hallazgos_obstetricos.append("embarazo mayor de 20 semanas")
-    if pas >= 140 or pad >= 90:
-        hallazgos_obstetricos += ["hipertensión", "preeclampsia", "riesgo de alteración de la díada materno-fetal"]
-    if pas >= 160 or pad >= 110:
-        hallazgos_obstetricos += ["hipertensión severa", "prioridad alta", "signos de alarma obstétrica"]
-    if cefalea_intensa:
-        hallazgos_obstetricos += ["cefalea intensa", "signos de alarma obstétrica", "ansiedad"]
-    if fosfenos:
-        hallazgos_obstetricos += ["fosfenos", "visión borrosa", "signos de alarma obstétrica"]
-    if acufenos:
-        hallazgos_obstetricos += ["acúfenos", "zumbido de oídos", "signos de alarma obstétrica"]
-    if epigastralgia:
-        hallazgos_obstetricos += ["epigastralgia", "dolor epigástrico", "dolor"]
-    if edema_cara_manos:
-        hallazgos_obstetricos += ["edema", "edema de cara", "edema de manos"]
-    if convulsiones:
-        hallazgos_obstetricos += ["convulsiones", "alteración neurológica", "prioridad alta"]
-    if sangrado_vaginal:
-        hallazgos_obstetricos += ["sangrado", "sangrado vaginal", "riesgo de sangrado", "dolor abdominal", "prioridad alta"]
-    if salida_liquido:
-        hallazgos_obstetricos += ["salida de líquido transvaginal", "ruptura de membranas", "riesgo de infección", "vigilancia obstétrica"]
-    if liquido_fetido:
-        hallazgos_obstetricos += ["líquido fétido", "fiebre", "infección", "riesgo de infección"]
-    if liquido_verdoso:
-        hallazgos_obstetricos += ["líquido verdoso", "riesgo de alteración de la díada materno-fetal", "prioridad alta"]
-    if temperatura >= 38:
-        hallazgos_obstetricos += ["fiebre", "temperatura elevada", "riesgo de infección"]
-    if dolor_abdominal_intenso:
-        hallazgos_obstetricos += ["dolor abdominal intenso", "dolor", "dolor agudo", "prioridad alta"]
-    if contracciones_antes_termino:
-        hallazgos_obstetricos += ["contracciones uterinas", "dolor de parto", "dolor", "amenaza de parto pretérmino"]
-    if disminucion_mov_fetales or movimientos_fetales in ["Disminuidos", "Ausentes"]:
-        hallazgos_obstetricos += ["disminución de movimientos fetales", "riesgo de alteración de la díada materno-fetal", "prioridad alta"]
-    if nausea_vomito_persistente:
-        hallazgos_obstetricos += ["náusea", "nauseas", "vómito", "mucosas secas", "déficit de volumen de líquidos"]
-    if disuria_obstetrica:
-        hallazgos_obstetricos += ["disuria", "dolor al orinar", "infección urinaria", "riesgo de infección"]
+hallazgos_obstetricos = extraer_hallazgos_obstetricos(
+    tipo_paciente=tipo_paciente,
+    semanas_gestacion=semanas_gestacion,
+    pas=pas,
+    pad=pad,
+    temperatura=temperatura,
+    cefalea_intensa=cefalea_intensa,
+    fosfenos=fosfenos,
+    acufenos=acufenos,
+    epigastralgia=epigastralgia,
+    edema_cara_manos=edema_cara_manos,
+    convulsiones=convulsiones,
+    sangrado_vaginal=sangrado_vaginal,
+    salida_liquido=salida_liquido,
+    liquido_fetido=liquido_fetido,
+    liquido_verdoso=liquido_verdoso,
+    dolor_abdominal_intenso=dolor_abdominal_intenso,
+    contracciones_antes_termino=contracciones_antes_termino,
+    disminucion_mov_fetales=disminucion_mov_fetales,
+    movimientos_fetales=movimientos_fetales,
+    nausea_vomito_persistente=nausea_vomito_persistente,
+    disuria_obstetrica=disuria_obstetrica,
+)
 
 hallazgos_perfil = []
 if tipo_paciente == "Geriátrico":
@@ -786,46 +774,6 @@ hallazgos_obstetricos_ruta, resumen_rutas_obstetricas = evaluar_rutas_obstetrica
     hallazgos_detectados=hallazgos_seleccionados
 )
 
-# Seguro clínico: hipertensiva crítica solo si PA severa o convulsiones reales
-try:
-    pa_severa_obs = tipo_paciente == "Obstétrico" and int(semanas_gestacion) >= 20 and (int(pas) >= 160 or int(pad) >= 110)
-except Exception:
-    pa_severa_obs = False
-
-conv_reales = bool(convulsiones) or any(
-    str(h).lower().strip() in ["convulsiones", "convulsión", "eclampsia"]
-    for h in hallazgos_seleccionados
-)
-
-if (tipo_paciente == "Obstétrico"
-    and "[Crítica] Hipertensiva / preeclampsia" in resumen_rutas_obstetricas
-    and not pa_severa_obs and not conv_reales):
-    resumen_rutas_obstetricas = resumen_rutas_obstetricas.replace(
-        "[Crítica] Hipertensiva / preeclampsia",
-        "[Alta] Hipertensiva / preeclampsia"
-    )
-
-# Enriquecimiento obstétrico
-if tipo_paciente == "Obstétrico":
-    if "Hipertensiva / preeclampsia" in resumen_rutas_obstetricas:
-        hallazgos_obstetricos_ruta += ["riesgo de alteración de la díada materno-fetal",
-                                        "preeclampsia", "hipertensión", "signos de alarma obstétrica",
-                                        "ansiedad", "preocupación"]
-    if "RPM / infección" in resumen_rutas_obstetricas:
-        hallazgos_obstetricos_ruta += ["riesgo de infección materno-fetal", "salida de líquido transvaginal",
-                                        "ruptura de membranas", "riesgo de infección",
-                                        "signos de alarma obstétrica", "riesgo de alteración de la díada materno-fetal"]
-    if "Hemorrágica" in resumen_rutas_obstetricas:
-        hallazgos_obstetricos_ruta += ["riesgo de sangrado", "sangrado vaginal", "dolor abdominal",
-                                        "signos de alarma obstétrica", "riesgo de alteración de la díada materno-fetal"]
-    if "Dolor obstétrico / signo de alarma" in resumen_rutas_obstetricas:
-        hallazgos_obstetricos_ruta += ["dolor abdominal", "dolor abdominal intenso", "dolor agudo",
-                                        "signos de alarma obstétrica", "riesgo de alteración de la díada materno-fetal"]
-    if "Bienestar fetal" in resumen_rutas_obstetricas:
-        hallazgos_obstetricos_ruta += ["disminución de movimientos fetales", "vigilancia fetal",
-                                        "estado fetal anteparto", "riesgo de alteración de la díada materno-fetal",
-                                        "signos de alarma obstétrica"]
-
 # Combinar todo y deduplicar
 hallazgos_seleccionados = consolidar_hallazgos(
     hallazgos_seleccionados, hallazgos_obstetricos, hallazgos_obstetricos_ruta,
@@ -842,7 +790,11 @@ with st.sidebar:
     n_alertas_prev = 0
     if spo2 <= 90 or fr > 30 or glasgow_total <= 8 or puntaje_braden <= 12 or puntaje_caidas >= 6:
         n_alertas_prev += 1
-    if tipo_paciente == "Obstétrico" and (pas >= 140 or pad >= 90 or convulsiones or sangrado_vaginal):
+    pa_obstetrica_elevada = (
+        (pas is not None and pas >= 140)
+        or (pad is not None and pad >= 90)
+    )
+    if tipo_paciente == "Obstétrico" and (pa_obstetrica_elevada or convulsiones or sangrado_vaginal):
         n_alertas_prev += 1
 
     st.markdown(f"**Perfil:** {tipo_paciente}")
@@ -908,7 +860,7 @@ with tab_resultados:
                 "Interpretación riesgo de caídas": riesgo_caidas if caidas_valorado else "No valorado",
                 "Semanas de gestación": semanas_gestacion if tipo_paciente == "Obstétrico" else "No aplica",
                 "Gestas": gestas if tipo_paciente == "Obstétrico" else "No aplica",
-                "PA obstétrica (mmHg)": f"{pas}/{pad}" if tipo_paciente == "Obstétrico" else "No aplica",
+                "PA obstétrica (mmHg)": f"{pas_texto}/{pad_texto}" if tipo_paciente == "Obstétrico" else "No aplica",
                 "Interpretación PA obstétrica": interpretacion_pa_obstetrica,
                 "Temperatura (°C)": temperatura if tipo_paciente == "Obstétrico" else "No aplica",
                 "Movimientos fetales": movimientos_fetales if tipo_paciente == "Obstétrico" else "No aplica",
