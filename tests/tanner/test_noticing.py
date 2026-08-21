@@ -25,9 +25,8 @@ def test_reconoce_todos_los_indicios_esperados(indicios_caso) -> None:
         [
             "pa_165_115",
             "cefalea_intensa",
-            "fotofobia",
+            "alteracion_visual",
             "gestacion_36",
-            "inquietud",
         ],
     )
 
@@ -40,7 +39,7 @@ def test_reconoce_todos_los_indicios_esperados(indicios_caso) -> None:
 def test_detecta_omision_critica_de_presion(indicios_caso) -> None:
     resultado = evaluar_noticing(
         indicios_caso,
-        ["cefalea_intensa", "fotofobia", "gestacion_36", "inquietud"],
+        ["cefalea_intensa", "alteracion_visual", "gestacion_36"],
     )
 
     assert resultado.tiene_omisiones_criticas is True
@@ -50,10 +49,10 @@ def test_detecta_omision_critica_de_presion(indicios_caso) -> None:
 def test_distingue_omision_relevante_de_omision_critica(indicios_caso) -> None:
     resultado = evaluar_noticing(
         indicios_caso,
-        ["pa_165_115", "cefalea_intensa", "gestacion_36", "inquietud"],
+        ["pa_165_115", "cefalea_intensa", "gestacion_36"],
     )
 
-    assert resultado.omitidos_esperados == ("fotofobia",)
+    assert resultado.omitidos_esperados == ("alteracion_visual",)
     assert resultado.omisiones_criticas == ()
 
 
@@ -67,6 +66,27 @@ def test_identifica_datos_no_prioritarios_seleccionados(indicios_caso) -> None:
         "fr_20",
         "pregunta_pareja",
     )
+
+
+def test_inquietud_es_complementaria_y_su_omision_no_penaliza(indicios_caso) -> None:
+    resultado_sin_inquietud = evaluar_noticing(
+        indicios_caso,
+        ["pa_165_115", "cefalea_intensa", "alteracion_visual", "gestacion_36"],
+    )
+    resultado_con_inquietud = evaluar_noticing(
+        indicios_caso,
+        [
+            "pa_165_115",
+            "cefalea_intensa",
+            "alteracion_visual",
+            "gestacion_36",
+            "inquietud",
+        ],
+    )
+
+    assert resultado_sin_inquietud.omitidos_esperados == ()
+    assert resultado_sin_inquietud.completo_sin_errores is True
+    assert resultado_con_inquietud.seleccionados_no_prioritarios == ()
 
 
 def test_registra_identificador_desconocido_sin_romper(indicios_caso) -> None:
@@ -97,9 +117,8 @@ def test_no_seleccionar_nada_omite_todos_los_esperados(indicios_caso) -> None:
     assert resultado.omitidos_esperados == (
         "pa_165_115",
         "cefalea_intensa",
-        "fotofobia",
+        "alteracion_visual",
         "gestacion_36",
-        "inquietud",
     )
     assert resultado.omisiones_criticas == (
         "pa_165_115",

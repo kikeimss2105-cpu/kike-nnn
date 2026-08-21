@@ -15,9 +15,8 @@ def test_ejecuta_noticing_desde_el_yaml() -> None:
         [
             "pa_165_115",
             "cefalea_intensa",
-            "fotofobia",
+            "alteracion_visual",
             "gestacion_36",
-            "inquietud",
         ],
     )
 
@@ -29,9 +28,8 @@ def test_detecta_omision_critica_desde_servicio() -> None:
     ejecucion = ejecutar_noticing_desde_caso(
         CASO_OBSTETRICO,
         [
-            "fotofobia",
+            "alteracion_visual",
             "gestacion_36",
-            "inquietud",
         ],
     )
 
@@ -47,9 +45,8 @@ def test_detecta_seleccion_no_prioritaria_desde_servicio() -> None:
         [
             "pa_165_115",
             "cefalea_intensa",
-            "fotofobia",
+            "alteracion_visual",
             "gestacion_36",
-            "inquietud",
             "fr_20",
             "pregunta_pareja",
         ],

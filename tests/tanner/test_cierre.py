@@ -12,15 +12,17 @@ def test_caso_actual_habilita_solo_fases_implementadas() -> None:
     assert estado.caso_id == "OBS-HTA-001"
     assert estado.noticing_definido is True
     assert estado.interpreting_definido is True
-    assert estado.responding_habilitado is False
-    assert estado.reflecting_habilitado is False
+    assert estado.responding_habilitado is True
+    assert estado.reflecting_habilitado is True
+    assert estado.farmacologia_habilitada is False
+    assert estado.maquina_estados_habilitada is False
     assert estado.ciclo_completo_habilitado is False
 
 
-def test_fases_no_validadas_quedan_bloqueadas_explicita_y_reproduciblemente() -> None:
+def test_limites_no_validados_quedan_bloqueados_explicita_y_reproduciblemente() -> None:
     estado = inspeccionar_cierre_tanner(CASO)
 
     assert len(estado.bloqueos) == 2
     assert all(mensaje.startswith(BLOQUEO_CLINICO) for mensaje in estado.bloqueos)
-    assert any("Responding" in mensaje for mensaje in estado.bloqueos)
-    assert any("Reflecting" in mensaje for mensaje in estado.bloqueos)
+    assert any("Farmacología" in mensaje for mensaje in estado.bloqueos)
+    assert any("máquina de estados" in mensaje for mensaje in estado.bloqueos)

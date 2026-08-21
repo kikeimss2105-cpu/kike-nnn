@@ -28,7 +28,9 @@ def test_carga_clasifica_indicios_del_yaml() -> None:
     por_id = {indicio.id: indicio for indicio in caso.indicios_noticing}
 
     assert por_id["pa_165_115"].categoria == CategoriaIndicio.CRITICO
-    assert por_id["fotofobia"].categoria == CategoriaIndicio.RELEVANTE
+    assert por_id["alteracion_visual"].categoria == CategoriaIndicio.RELEVANTE
+    assert por_id["alteracion_visual"].texto == "Molestia visual importante ante la luz"
+    assert por_id["inquietud"].esperado is False
     assert (
         por_id["pregunta_pareja"].categoria
         == CategoriaIndicio.CONTEXTO_NO_PRIORITARIO
@@ -47,9 +49,8 @@ def test_carga_conserva_indicios_esperados() -> None:
     assert esperados == (
         "pa_165_115",
         "cefalea_intensa",
-        "fotofobia",
+        "alteracion_visual",
         "gestacion_36",
-        "inquietud",
     )
 
 

@@ -29,10 +29,10 @@ Estados permitidos:
 | SpO2 y FR | Interpretaciones generales y por perfil | Código y Golden | `BLOQUEO_CLINICO`: falta fuente por población y contexto |
 | Obstetricia | Cinco rutas educativas y alertas | Código, Golden y fuentes generales declaradas en OBS-HTA-001 | `BLOQUEO_CLINICO` por regla y texto de acción |
 | Gordon | 4 de 11 patrones con 18 items | CSV, crosswalk, excepción y Golden | `BLOQUEO_CLINICO` para completar siete patrones y validar la excepción |
-| Tanner Noticing | Comparación contra claves del caso | Contrato YAML y pruebas unitarias | `FUENTE_DECLARADA_PENDIENTE_REVISION` |
-| Tanner Interpreting | Detección semántica acotada y filtrada | Contrato YAML y pruebas unitarias | `FUENTE_DECLARADA_PENDIENTE_REVISION` |
-| Tanner Responding | Dominios preliminares sin motor | Borrador OBS-HTA-001 | `BLOQUEO_CLINICO` |
-| Tanner Reflecting | Preguntas preliminares sin motor | Borrador OBS-HTA-001 | `BLOQUEO_CLINICO` para la clave; la captura técnica puede desarrollarse aislada |
+| Tanner Noticing | Comparación contra claves del caso | Contrato YAML, decisión humana P0 y pruebas unitarias | `VALIDADO_PARCIALMENTE`: R03 y R05 corregidas |
+| Tanner Interpreting | Detección semántica acotada y filtrada | Contrato YAML, decisión humana P0 y pruebas unitarias | `VALIDADO_CON_LIMITES` para R11 |
+| Tanner Responding | Dominios no farmacológicos declarados, sin motor de acciones | Decisión humana P0 sobre OBS-HTA-001 | `VALIDADO_CON_LIMITES`: solo dominios no farmacológicos; farmacología bloqueada |
+| Tanner Reflecting | Clave propuesta de reflexión | Decisión humana P0; fundamento Tanner 2006 | `VALIDADO_PEDAGOGICAMENTE`; puntuación y estados bloqueados |
 
 ## Fuentes declaradas actualmente
 
@@ -54,9 +54,20 @@ página, regla respaldada, decisión y nombre/rol de quien revisó.
 3. Revisar cada condición, nivel y acción de `engine/obstetrico.py`.
 4. Revisar las transformaciones obstétricas duplicadas en `app.py`.
 5. Validar el contenido de los seis CSV activos del plan NNN.
-6. Validar `OBS-HTA-001`, incluyendo conceptos y relaciones de Interpreting.
-7. Definir acciones esperadas e inseguras de Responding con fuente.
-8. Definir la clave pedagógica de Reflecting con revisión docente.
+6. Mantener bloqueada la farmacología de `OBS-HTA-001` hasta contar con fuente,
+   protocolo y revisión clínica.
+7. Definir acciones esperadas e inseguras de Responding sin ampliar el alcance
+   farmacológico validado.
+8. Mantener sin puntuación y sin máquina de estados hasta validación específica.
+
+## Decisión humana P0 sobre OBS-HTA-001
+
+- Validadas: R01, R02, R04, R06, R07, R08, R09, R10, R12, R13, R14,
+  R15, R16, R17, R18, R21 y R24.
+- Validadas con límites: R11 y R19.
+- Corregidas: R03 (`alteracion_visual`) y R05 (`inquietud` no esperada).
+- Bloqueadas: R20 farmacología, R22 puntuación numérica y R23 máquina de
+  estados.
 
 ## Regla de liberación
 

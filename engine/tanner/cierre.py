@@ -24,6 +24,8 @@ class EstadoCierreTanner:
     interpreting_definido: bool
     responding_habilitado: bool
     reflecting_habilitado: bool
+    farmacologia_habilitada: bool
+    maquina_estados_habilitada: bool
     bloqueos: tuple[str, ...]
 
     @property
@@ -33,6 +35,8 @@ class EstadoCierreTanner:
             and self.interpreting_definido
             and self.responding_habilitado
             and self.reflecting_habilitado
+            and self.farmacologia_habilitada
+            and self.maquina_estados_habilitada
             and not self.bloqueos
         )
 
@@ -52,13 +56,29 @@ def inspeccionar_cierre_tanner(ruta: str | Path) -> EstadoCierreTanner:
     responding = tanner.get("responding")
     responding_habilitado = (
         isinstance(responding, dict)
-        and responding.get("estado") in {"validado_clinicamente", "validado_clinica_y_pedagogicamente"}
+        and responding.get("estado") in {
+            "validado_clinicamente",
+            "validado_clinicamente_no_farmacologico",
+            "validado_clinica_y_pedagogicamente",
+        }
+    )
+
+    acciones_farmacologicas = responding.get("acciones_farmacologicas", {}) if isinstance(responding, dict) else {}
+    farmacologia_habilitada = (
+        isinstance(acciones_farmacologicas, dict)
+        and acciones_farmacologicas.get("estado") == "validada_clinicamente"
     )
 
     reflecting = tanner.get("reflecting")
     reflecting_habilitado = (
         isinstance(reflecting, dict)
         and reflecting.get("estado") in {"validado_pedagogicamente", "validado_clinica_y_pedagogicamente"}
+    )
+
+    maquina_estados = datos.get("maquina_de_estados")
+    maquina_estados_habilitada = (
+        isinstance(maquina_estados, dict)
+        and maquina_estados.get("estado") == "validada_clinicamente"
     )
 
     bloqueos: list[str] = []
@@ -70,6 +90,14 @@ def inspeccionar_cierre_tanner(ruta: str | Path) -> EstadoCierreTanner:
         bloqueos.append(
             f"{BLOQUEO_CLINICO}: Reflecting requiere clave y validación pedagógica explícita."
         )
+    if not farmacologia_habilitada:
+        bloqueos.append(
+            f"{BLOQUEO_CLINICO}: Farmacología permanece bloqueada hasta validación clínica explícita."
+        )
+    if not maquina_estados_habilitada:
+        bloqueos.append(
+            f"{BLOQUEO_CLINICO}: La máquina de estados permanece bloqueada hasta validación clínica explícita."
+        )
 
     return EstadoCierreTanner(
         caso_id=str(datos.get("id", "")),
@@ -77,6 +105,8 @@ def inspeccionar_cierre_tanner(ruta: str | Path) -> EstadoCierreTanner:
         interpreting_definido=interpreting_definido,
         responding_habilitado=responding_habilitado,
         reflecting_habilitado=reflecting_habilitado,
+        farmacologia_habilitada=farmacologia_habilitada,
+        maquina_estados_habilitada=maquina_estados_habilitada,
         bloqueos=tuple(bloqueos),
     )
 

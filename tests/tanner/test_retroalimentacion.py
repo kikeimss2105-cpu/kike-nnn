@@ -23,13 +23,13 @@ def test_genera_resumen_con_totales_reales() -> None:
         ejecucion.resultado,
     )
 
-    assert retro.resumen == "Se reconocieron 2 de 5 indicios esperados."
+    assert retro.resumen == "Se reconocieron 2 de 4 indicios esperados."
 
 
 def test_explica_omision_critica_desde_yaml() -> None:
     ejecucion = ejecutar_noticing_desde_caso(
         CASO_OBSTETRICO,
-        ["fotofobia", "gestacion_36", "inquietud"],
+        ["alteracion_visual", "gestacion_36"],
     )
 
     retro = generar_retroalimentacion_noticing(
@@ -65,7 +65,7 @@ def test_separa_omision_critica_de_otras_omisiones() -> None:
     )
 
     assert len(retro.omisiones_criticas) == 1
-    assert len(retro.omisiones_esperadas) == 3
+    assert len(retro.omisiones_esperadas) == 2
 
 
 def test_explica_dato_no_prioritario() -> None:
@@ -74,9 +74,8 @@ def test_explica_dato_no_prioritario() -> None:
         [
             "pa_165_115",
             "cefalea_intensa",
-            "fotofobia",
+            "alteracion_visual",
             "gestacion_36",
-            "inquietud",
             "fr_20",
         ],
     )
@@ -122,9 +121,8 @@ def test_retroalimentacion_completa_sin_errores() -> None:
         [
             "pa_165_115",
             "cefalea_intensa",
-            "fotofobia",
+            "alteracion_visual",
             "gestacion_36",
-            "inquietud",
         ],
     )
 
@@ -154,7 +152,7 @@ def test_como_texto_conserva_secciones_relevantes() -> None:
     )
     texto = retro.como_texto()
 
-    assert "Se reconocieron 1 de 5 indicios esperados." in texto
+    assert "Se reconocieron 1 de 4 indicios esperados." in texto
     assert "Omisiones críticas:" in texto
     assert "Datos no prioritarios seleccionados:" in texto
     assert "Prioridad de revisión:" in texto

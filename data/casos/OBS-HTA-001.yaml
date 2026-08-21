@@ -44,11 +44,11 @@ tanner:
         esperado: true
         fundamento: manifestacion_neurologica_de_alarma
 
-      - id: fotofobia
-        texto: Molestia importante ante la luz
+      - id: alteracion_visual
+        texto: Molestia visual importante ante la luz
         categoria: relevante
         esperado: true
-        fundamento: sintoma_neurologico_que_requiere_valoracion
+        fundamento: sintoma_visual_que_requiere_valoracion_en_contexto_de_hipertension_grave
 
       - id: gestacion_36
         texto: Embarazo de 36 semanas
@@ -59,7 +59,7 @@ tanner:
       - id: inquietud
         texto: Paciente inquieta
         categoria: complementario
-        esperado: true
+        esperado: false
         fundamento: dato_inespecifico_que_requiere_contexto
 
       - id: fr_20
@@ -89,6 +89,9 @@ tanner:
       - riesgo_de_deterioro_materno
       - necesidad_de_evaluacion_y_atencion_urgente
 
+    limites_conceptuales:
+      sintomas_neurologicos_relevantes: incluye_cefalea_y_sintomas_visuales_de_alarma_sin_afirmar_que_la_fotofobia_aislada_sea_diagnostica
+
     relaciones_esperadas:
       - hipertension_grave_con_manifestaciones_neurologicas
       - embarazo_con_hipertension_grave_requiere_evaluacion_de_trastorno_hipertensivo
@@ -100,20 +103,25 @@ tanner:
       - vocabulario_unico
 
   responding:
-    estado: pendiente_de_validacion_clinica
+    estado: validado_clinicamente_no_farmacologico
+    alcance: dominios_no_farmacologicos
     objetivo: priorizar_seguridad_escalamiento_y_vigilancia
     dominios_preliminares:
       - reconocer_urgencia
       - solicitar_apoyo_del_equipo
       - vigilancia_materna
       - vigilancia_neurologica
+      - valorar_signos_adicionales_de_gravedad
+      - vigilancia_fetal_segun_protocolo
       - seguir_protocolo_institucional
 
     acciones_farmacologicas:
-      estado: no_definidas
+      estado: bloqueadas
       razon: requieren_fuente_protocolo_y_revision_clinica
 
   reflecting:
+    estado: validado_pedagogicamente
+    fundamento: Tanner_2006
     objetivo: revalorar_la_respuesta_y_reconocer_omisiones
     reflexion_en_la_accion:
       - comparar_datos_iniciales_y_nuevos
@@ -144,7 +152,7 @@ evaluacion:
     - retroalimentacion_generada
 
 maquina_de_estados:
-  estado: pendiente
+  estado: bloqueada
   restriccion: no_crear_modelo_fisiologico_universal
   enfoque: estados_discretos_validados_para_este_caso
 
@@ -169,10 +177,44 @@ fuentes_clinicas:
     titulo: Preeclampsia and high blood pressure during pregnancy
     uso: umbral_de_hipertension_grave_y_datos_de_gravedad
 
+fuentes_pedagogicas:
+  - id: TANNER-2006
+    referencia: Tanner 2006
+    uso: fundamento_de_reflecting
+
+revision_humana:
+  decision: P0_OBS_HTA_001
+  reglas_validadas:
+    - OBS-HTA-R01
+    - OBS-HTA-R02
+    - OBS-HTA-R04
+    - OBS-HTA-R06
+    - OBS-HTA-R07
+    - OBS-HTA-R08
+    - OBS-HTA-R09
+    - OBS-HTA-R10
+    - OBS-HTA-R12
+    - OBS-HTA-R13
+    - OBS-HTA-R14
+    - OBS-HTA-R15
+    - OBS-HTA-R16
+    - OBS-HTA-R17
+    - OBS-HTA-R18
+    - OBS-HTA-R21
+    - OBS-HTA-R24
+  reglas_validadas_con_limites:
+    - OBS-HTA-R11
+    - OBS-HTA-R19
+  reglas_corregidas:
+    - OBS-HTA-R03
+    - OBS-HTA-R05
+  reglas_bloqueadas:
+    - OBS-HTA-R20
+    - OBS-HTA-R22
+    - OBS-HTA-R23
+
 pendientes_clinicos:
-  - validar_redaccion_del_escenario
-  - confirmar_intervenciones_de_enfermeria
   - definir_acciones_inseguras
   - definir_estados_de_evolucion
   - revisar_vinculacion_NANDA_NOC_NIC
-  - revisar_con_docente_o_experto_obstetrico
+  - mantener_farmacologia_bloqueada_hasta_fuente_protocolo_y_revision_clinica
