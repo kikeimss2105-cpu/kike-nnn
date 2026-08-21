@@ -21,6 +21,7 @@ from engine.neonatal import (
     calcular_capurro_a,
     calcular_capurro_b,
     calcular_silverman,
+    serializar_resultado,
 )
 
 st.set_page_config(page_title="KIKE-NNN | Apoyo al razonamiento clínico", layout="wide")
@@ -279,6 +280,10 @@ with tab_valoracion:
 with tab_braden:
     st.header("3. Escalas clínicas")
     st.info(f"Perfil seleccionado: {tipo_paciente}. {recomendaciones_por_tipo(tipo_paciente)}")
+
+    resultado_apgar = None
+    resultado_silverman = None
+    resultado_capurro = None
 
     if tipo_paciente == "Recién nacido":
         with st.expander("👶 Escalas neonatales deterministas", expanded=True):
@@ -911,6 +916,11 @@ with tab_resultados:
                 "Hallazgos estructurados": ", ".join(hallazgos_seleccionados),
                 "Datos clínicos texto libre": sintomas,
             }
+
+            if tipo_paciente == "Recién nacido":
+                datos_paciente["APGAR"] = serializar_resultado(resultado_apgar)
+                datos_paciente["Silverman-Andersen"] = serializar_resultado(resultado_silverman)
+                datos_paciente[f"Capurro {variante_capurro}"] = serializar_resultado(resultado_capurro)
 
             # Valores efectivos: solo entra al motor de alertas si la escala fue valorada
             _spo2_ef = spo2 if respiratorio_valorado else 98

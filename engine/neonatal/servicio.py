@@ -20,6 +20,29 @@ CALCULADORES = {
 }
 
 
+def serializar_resultado(
+    resultado: ResultadoEscalaNeonatal,
+) -> dict[str, Any]:
+    """Convierte un resultado en datos auditables sin imputar ausencias.
+
+    Los componentes no valorados y los totales no calculados permanecen como
+    ``None``. Esta función no interpreta ni reclasifica el resultado.
+    """
+
+    return {
+        "escala": resultado.escala,
+        "calculado": resultado.calculado,
+        "total": resultado.total,
+        "componentes": dict(resultado.componentes),
+        "datos_faltantes": list(resultado.datos_faltantes),
+        "interpretacion": resultado.interpretacion,
+        "formula": resultado.formula,
+        "edad_gestacional_semanas": resultado.edad_gestacional_semanas,
+        "semanas_completas": resultado.semanas_completas,
+        "dias_adicionales": resultado.dias_adicionales,
+    }
+
+
 def calcular_escala(nombre: str, datos: Mapping[str, Any]) -> ResultadoEscalaNeonatal:
     """Despacha una escala conocida sin modificar ni completar los datos."""
 
