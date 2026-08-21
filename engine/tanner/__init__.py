@@ -1,6 +1,11 @@
 """Motor pedagógico basado en el Modelo de Juicio Clínico de Tanner."""
 
 from engine.tanner.casos import CasoTanner, cargar_caso_tanner
+from engine.tanner.cierre import (
+    BLOQUEO_CLINICO,
+    EstadoCierreTanner,
+    inspeccionar_cierre_tanner,
+)
 from engine.tanner.modelos import (
     CategoriaIndicio,
     IndicioTanner,
@@ -34,6 +39,9 @@ from engine.tanner.retroalimentacion_interpreting import (
 )
 
 __all__ = [
+    "BLOQUEO_CLINICO",
+    "EstadoCierreTanner",
+    "inspeccionar_cierre_tanner",
     "generar_retroalimentacion_noticing",
     "RetroalimentacionNoticing",
     "ejecutar_noticing_desde_caso",
