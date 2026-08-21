@@ -1,30 +1,54 @@
-# KIKE-NNN v18.1
+# KIKE-NNN v1.0.0-rc1
 
-**Motor educativo de razonamiento clínico NANDA-NIC-NOC**
+Sistema educativo de apoyo al juicio clínico en enfermería con enfoque
+materno-neonatal. Sugiere, explica y permite argumentar; no emite diagnósticos
+clínicos definitivos ni sustituye protocolos o revisión profesional.
 
-Herramienta de apoyo educativo para estudiantes y profesionales de enfermería.
-Genera sugerencias de diagnósticos NANDA con vinculación NOC/NIC según hallazgos clínicos ingresados.
+## Estado real
 
-## ⚠️ Aviso de uso
+Este commit es un **candidato técnico**, no la liberación clínica final v1.0.0.
+Los bloqueos pendientes están documentados en
+`docs/CIERRE_V1_TRAZABILIDAD_CLINICA.md`.
 
-Esta herramienta tiene **uso exclusivamente educativo**. No emite diagnósticos clínicos definitivos,
-no sustituye el juicio profesional ni los protocolos institucionales vigentes.
-No está certificada por COFEPRIS ni por ningún organismo regulatorio.
+Módulos integrados:
 
-## Módulos activos v18.1
+- sugerencias educativas NANDA con vínculos NOC/NIC;
+- metas, indicadores, actividades y fundamentos declarativos;
+- valoración general y piloto Gordon de 4/11 patrones;
+- cinco rutas obstétricas educativas;
+- APGAR, Silverman-Andersen y Capurro A/B deterministas;
+- análisis docente basado en reglas explícitas;
+- exportación a Excel y Word;
+- Tanner Noticing e Interpreting aislados y probados.
 
-- Perfil de paciente (adulto, geriátrico, pediátrico, obstétrico, recién nacido)
-- Valoración estructurada rápida
-- Escalas clínicas (Braden, EVA, Glasgow, caídas, SpO₂, FR)
-- Módulo obstétrico: rutas hipertensiva, RPM/infección, dolor obstétrico, hemorrágica, bienestar fetal
-- Exportación a Excel y Word
+Tanner Responding y Reflecting permanecen bloqueados hasta validación clínica y
+pedagógica humana. Un fallo del LLM se informa como fallo técnico y nunca se
+convierte en una valoración negativa del estudiante.
 
-## Stack
+## Instalación de desarrollo
 
-- Python 3.x
-- Streamlit
-- Pandas
-- python-docx
-- openpyxl
+```bash
+python -m pip install -r requirements-dev.txt
+```
 
-## Escuela de Enfermería y Obstetricia Leininger — Xalapa, Veracruz
+## Validación obligatoria
+
+```bash
+python3 scripts/golden_runner.py
+python -m pytest -q
+```
+
+## Datos activos
+
+El flujo NNN consume `nanda.csv`, `enlaces.csv`, `noc_indicadores.csv`,
+`nic_actividades.csv`, `fundamentos.csv` y `metas.csv`. `noc.csv` y `nic.csv`
+son archivos residuales y no alimentan el motor.
+
+## Seguridad y alcance
+
+- Uso exclusivamente educativo.
+- No es un dispositivo médico.
+- No prescribe ni decide tratamientos.
+- Ningún dato ausente se completa como cero.
+- La IA no puede modificar las claves clínicas de los casos.
+- No introduzca datos identificables de pacientes en pruebas o servicios LLM.

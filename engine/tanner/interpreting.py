@@ -26,6 +26,12 @@ from dataclasses import dataclass
 from typing import Protocol
 
 
+def describir_error_publico(error: BaseException) -> str:
+    """Describe la clase del fallo sin exponer mensajes, URLs o credenciales."""
+
+    return f"Fallo técnico del proveedor ({type(error).__name__})."
+
+
 @dataclass(frozen=True, slots=True)
 class RespuestaClienteLLM:
     """Respuesta cruda del cliente de LLM, ya parseada a una forma fija."""

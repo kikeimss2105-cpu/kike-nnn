@@ -30,7 +30,7 @@ from pathlib import Path
 from dotenv import dotenv_values
 from openai import OpenAI
 
-from engine.tanner.interpreting import RespuestaClienteLLM
+from engine.tanner.interpreting import RespuestaClienteLLM, describir_error_publico
 
 RAIZ_PROYECTO = Path(__file__).resolve().parent.parent.parent
 ARCHIVO_ENTORNO = RAIZ_PROYECTO / ".env.tanner"
@@ -144,9 +144,9 @@ class ClienteNvidiaInterpreting:
                     exitosa=True,
                 )
             except json.JSONDecodeError as error:
-                ultimo_error = f"El modelo no devolvió JSON válido: {error}"
+                ultimo_error = describir_error_publico(error)
             except Exception as error:  # noqa: BLE001 — cualquier fallo de red/API se reporta, no se oculta
-                ultimo_error = f"{type(error).__name__}: {error}"
+                ultimo_error = describir_error_publico(error)
 
             if intento < _INTENTOS_MAXIMOS:
                 time.sleep(_ESPERA_ENTRE_INTENTOS_SEGUNDOS)

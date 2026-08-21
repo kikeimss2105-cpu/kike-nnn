@@ -77,3 +77,4 @@ Los comandos de validación obligatorios actuales son:
 ```bash
 python3 scripts/golden_runner.py
 python -m pytest -q
+```

@@ -46,7 +46,7 @@ def _mostrar_disclaimer():
     </style>
     """, unsafe_allow_html=True)
 
-    st.image("https://img.shields.io/badge/KIKE--NNN-v19-blue?style=flat-square", width=160)
+    st.image("https://img.shields.io/badge/KIKE--NNN-v1.0.0--rc1-blue?style=flat-square", width=180)
     st.markdown("## ⚕️ Aviso de uso obligatorio")
 
     st.markdown("""
@@ -129,7 +129,7 @@ patrones_gordon = _cargar_patrones_gordon_cacheado()
 # =========================
 
 with st.sidebar:
-    st.success("KIKE-NNN v19 | Justificación clínica + 60 dx NANDA")
+    st.success("KIKE-NNN v1.0.0-rc1 | Candidato técnico educativo")
     st.info("Rutas: hipertensiva, RPM/infección, dolor obstétrico, hemorrágica y bienestar fetal.")
     st.markdown("---")
     st.caption("⚕️ Herramienta educativa — no uso clínico directo")
@@ -852,7 +852,7 @@ with st.sidebar:
     else:
         st.success("Sin alertas críticas previas")
     st.markdown("---")
-    st.caption("v19 | Leininger · Xalapa, Ver.")
+    st.caption("v1.0.0-rc1 | Leininger · Xalapa, Ver.")
 
 
 # =========================
@@ -1148,7 +1148,7 @@ with tab_resultados:
                 st.download_button(
                     label="📊 Descargar Excel",
                     data=excel_file,
-                    file_name="plan_cuidados_nnn_v19.xlsx",
+                    file_name="plan_cuidados_nnn_v1_rc1.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True
                 )
@@ -1156,7 +1156,7 @@ with tab_resultados:
                 st.download_button(
                     label="📄 Descargar Word",
                     data=word_file,
-                    file_name="plan_cuidados_nnn_v19.docx",
+                    file_name="plan_cuidados_nnn_v1_rc1.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     use_container_width=True
                 )
@@ -1203,4 +1203,4 @@ with tab_resultados:
                     st.caption(f"⚠️ {fila['Nota']}")
 
     st.markdown("---")
-    st.caption("KIKE-NNN v19 | Uso educativo exclusivo | Escuela de Enfermería y Obstetricia Leininger · Xalapa, Veracruz | No certificado por COFEPRIS")
+    st.caption("KIKE-NNN v1.0.0-rc1 | Uso educativo exclusivo | Escuela de Enfermería y Obstetricia Leininger · Xalapa, Veracruz | No certificado por COFEPRIS")

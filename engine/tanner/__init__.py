@@ -31,6 +31,7 @@ from engine.tanner.interpreting import (
     ClienteInterpretacion,
     RespuestaClienteLLM,
     ResultadoInterpreting,
+    describir_error_publico,
     evaluar_interpreting,
 )
 from engine.tanner.retroalimentacion_interpreting import (
@@ -55,6 +56,7 @@ __all__ = [
     "ClienteInterpretacion",
     "RespuestaClienteLLM",
     "ResultadoInterpreting",
+    "describir_error_publico",
     "evaluar_interpreting",
     "RetroalimentacionInterpreting",
     "generar_retroalimentacion_interpreting",
