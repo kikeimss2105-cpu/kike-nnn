@@ -11,6 +11,9 @@ Estados permitidos:
   evidencia suficiente de revisión clínica humana por regla.
 - `FUENTE_DECLARADA_PENDIENTE_REVISION`: el caso identifica una fuente, pero no
   existe constancia de revisión humana ni localización exacta de la regla.
+- `FUENTE_COTEJADA_CON_LIMITES`: una decisión humana documentó identidad y
+  contenido relevante de la fuente, pero no extiende la validación a reglas,
+  umbrales o decisiones que no fueron cotejados expresamente.
 - `BLOQUEO_CLINICO`: no puede cerrarse autónomamente sin fuente verificable y
   revisión humana.
 - `VALIDADO_CLINICAMENTE`: reservado para una revisión humana documentada. En
@@ -57,7 +60,7 @@ de revisión para cada referencia.
 | Grupo de reglas | Contenido implementado | Fuente indicada | Estado |
 |---|---|---|---|
 | P0-OBS-R001–R005, R015–R025, R045–R052, R063–R064 y R069–R073 | PA, signos de alarma y evaluación de trastorno hipertensivo | IMSS-058; IMSS-586; ACOG | `FUENTE_DECLARADA_PENDIENTE_REVISION` |
-| P0-OBS-R007–R009 y R026–R032 | Sospecha de ruptura de membranas y posible riesgo infeccioso | IMSS-321-11 | `FUENTE_DECLARADA_PENDIENTE_REVISION` |
+| P0-OBS-R007–R009 y R026–R032 | Salida de líquido, sospecha de ruptura de membranas y signos que requieren valoración de infección | IMSS-321-11 | `FUENTE_COTEJADA_CON_LIMITES` |
 | P0-OBS-R011, R035, R038 y R059 | Contracciones antes de término con edad gestacional menor de 37 semanas | IMSS-063-08 | `FUENTE_DECLARADA_PENDIENTE_REVISION` |
 | P0-OBS-R006, R033–R036, R053 y R066 | Sangrado vaginal y ruta de valoración de sangrado obstétrico | IMSS-162-09, *Diagnóstico y tratamiento del choque hemorrágico en obstetricia*, actualización 2017 | `VALIDADO_CON_LIMITES` |
 | P0-OBS-R012–R014, R040–R044, R054–R062 y R065–R068 | Control prenatal, alarmas generales y valoración materno-fetal | IMSS-028; IMSS-436, cuando corresponda | `FUENTE_DECLARADA_PENDIENTE_REVISION` |
@@ -65,6 +68,37 @@ de revisión para cada referencia.
 La referencia histórica IMSS-020 permanece declarada en `OBS-HTA-001`, pero
 no se usa para sustituir ni inferir el identificador IMSS-058 indicado en la
 decisión P0. La discrepancia bibliográfica requiere revisión humana.
+
+### Decisión humana P0-RPM/infección
+
+- **Institución:** Instituto Mexicano del Seguro Social.
+- **Clave:** IMSS-321-11.
+- **Título:** *Ruptura Prematura de Membranas*.
+- **Publicación indicada en la guía:** 30/09/2009.
+- **Sección/página/URL:** no registradas en el repositorio; permanecen como
+  evidencia documental pendiente y no se inventan.
+- La guía requiere determinar la edad gestacional y distinguir gestación
+  pretérmino (`<37` semanas) de gestación a término (`>=37` semanas).
+- La salida de líquido se conserva como dato observado y solo activa
+  `sospecha de ruptura de membranas / requiere valoración`. No confirma RPM.
+- La confirmación contempla procedimientos diagnósticos específicos; el
+  sistema no modela ni inventa resultados de especuloscopía, cristalografía u
+  otras pruebas.
+- Líquido fétido, fiebre medida y otras características se registran como
+  signos que deben contextualizarse. Ninguno confirma infección por sí solo.
+- Los criterios descritos para corioamnionitis son múltiples e incluyen fiebre
+  materna, taquicardia materna, leucocitosis, hipersensibilidad uterina,
+  descarga o líquido anormal y taquicardia fetal. El contrato actual no modela
+  de manera suficiente el conjunto y el diagnóstico automático permanece
+  bloqueado.
+- La vigilancia materna y fetal en pacientes con RPM requiere valoración
+  contextual. Un líquido verdoso aislado no crea compromiso fetal, sufrimiento
+  fetal ni alteración de la díada.
+- La frecuencia cardiaca fetal no está modelada con suficiencia diagnóstica y
+  permanece como deuda clínica explícita.
+- La fuente no se usa para validar farmacología, tratamiento de RPM,
+  prioridades fijas, diagnóstico automático ni decisiones obstétricas
+  definitivas.
 
 ### Decisión humana P0-HEMORRAGIA
 
@@ -99,6 +133,10 @@ no se implementan hasta tener datos y contratos suficientes.
   diagnóstico de preeclampsia.
 - Salida de líquido expresa sospecha de ruptura; líquido fétido y fiebre
   expresan posible riesgo infeccioso, sin confirmar infección.
+- Los datos RPM observados, inferencias pedagógicas, sospechas y sugerencias
+  NANDA se conservan en categorías distintas. Las salidas de la ruta no se
+  consolidan como evidencia de entrada al motor NANDA.
+- No se sugieren etiquetas materno-fetales sin un dato fetal observado.
 - Sangrado no fabrica dolor; náusea/vómito no fabrica deshidratación; disuria
   no fabrica infección urinaria.
 - Sangrado vaginal aislado activa valoración y caracterización, no una
@@ -124,6 +162,9 @@ no se implementan hasta tener datos y contratos suficientes.
 7. Definir acciones esperadas e inseguras de Responding sin ampliar el alcance
    farmacológico validado.
 8. Mantener sin puntuación y sin máquina de estados hasta validación específica.
+9. Mantener bloqueados el diagnóstico automático de corioamnionitis, el
+   tratamiento de RPM y las decisiones obstétricas definitivas.
+10. Mantener la farmacología bloqueada.
 
 ## Decisión humana P0 sobre OBS-HTA-001
 

@@ -73,8 +73,13 @@ def nivel_confianza(puntaje):
 
 def buscar_diagnosticos(texto_clinico, nanda_df, enlaces_df):
     resultados = []
+    texto_normalizado = normalizar_texto(texto_clinico)
+    datos_fetales_observados = "dato fetal observado" in texto_normalizado
 
     for _, fila in nanda_df.iterrows():
+        nombre_nanda = normalizar_texto(fila.get("nanda", ""))
+        if "materno-fetal" in nombre_nanda and not datos_fetales_observados:
+            continue
         puntaje, coincidencias = calcular_puntaje(texto_clinico, fila)
 
         if puntaje > 0:

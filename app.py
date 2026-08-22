@@ -13,6 +13,7 @@ from engine.interpretaciones import (
     interpretar_fr_por_tipo, recomendaciones_por_tipo, interpretar_pa_obstetrica,
 )
 from engine.obstetrico import (
+    clasificar_datos_rpm,
     evaluar_rutas_obstetricas,
     extraer_hallazgos_obstetricos,
     generar_alertas_obstetricas,
@@ -737,11 +738,31 @@ hallazgos_obstetricos = extraer_hallazgos_obstetricos(
     disuria_obstetrica=disuria_obstetrica,
 )
 
+categorias_rpm = clasificar_datos_rpm(
+    salida_liquido=salida_liquido,
+    liquido_fetido=liquido_fetido,
+    liquido_verdoso=liquido_verdoso,
+    temperatura=temperatura,
+)
+
+# El motor NANDA recibe los datos RPM observados, no las sospechas ni las
+# inferencias pedagógicas creadas por la ruta.
+terminos_rpm_clasificados = {
+    termino
+    for categoria in categorias_rpm.values()
+    for termino in categoria
+}
+hallazgos_obstetricos_para_nanda = [
+    hallazgo for hallazgo in hallazgos_obstetricos
+    if hallazgo not in terminos_rpm_clasificados
+]
+hallazgos_obstetricos_para_nanda.extend(categorias_rpm["DATOS_OBSERVADOS"])
+
 hallazgos_perfil = []
 if tipo_paciente == "Geriátrico":
     hallazgos_perfil += ["adulto mayor", "riesgo de caídas", "fragilidad", "vigilancia de piel"]
 elif tipo_paciente == "Obstétrico":
-    hallazgos_perfil += ["embarazo", "vigilancia obstétrica", "signos de alarma obstétrica"]
+    hallazgos_perfil += ["embarazo", "vigilancia obstétrica"]
 elif tipo_paciente == "Recién nacido":
     hallazgos_perfil += ["recién nacido", "vigilancia neonatal", "termorregulación"]
 elif tipo_paciente == "Pediátrico":
@@ -776,7 +797,7 @@ hallazgos_obstetricos_ruta, resumen_rutas_obstetricas = evaluar_rutas_obstetrica
 
 # Combinar todo y deduplicar
 hallazgos_seleccionados = consolidar_hallazgos(
-    hallazgos_seleccionados, hallazgos_obstetricos, hallazgos_obstetricos_ruta,
+    hallazgos_seleccionados, hallazgos_obstetricos_para_nanda,
     hallazgos_perfil, hallazgos_respiratorios, hallazgos_braden, hallazgos_eva,
     hallazgos_glasgow, hallazgos_caidas, hallazgos_gordon,
 )
@@ -865,6 +886,7 @@ with tab_resultados:
                 "Temperatura (°C)": temperatura if tipo_paciente == "Obstétrico" else "No aplica",
                 "Movimientos fetales": movimientos_fetales if tipo_paciente == "Obstétrico" else "No aplica",
                 "Ruta obstétrica activada": resumen_rutas_obstetricas if tipo_paciente == "Obstétrico" else "No aplica",
+                "Clasificación RPM/infección": categorias_rpm if tipo_paciente == "Obstétrico" else "No aplica",
                 "Hallazgos estructurados": ", ".join(hallazgos_seleccionados),
                 "Datos clínicos texto libre": sintomas,
             }

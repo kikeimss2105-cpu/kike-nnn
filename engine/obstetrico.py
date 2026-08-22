@@ -21,6 +21,45 @@ def _pa_texto(pas, pad):
     return f"{sistolica}/{diastolica}"
 
 
+def clasificar_datos_rpm(
+    salida_liquido=False,
+    liquido_fetido=False,
+    liquido_verdoso=False,
+    temperatura=None,
+):
+    """Separa el dato registrado de inferencias y sospechas de la ruta RPM.
+
+    Las sugerencias NANDA se mantienen fuera de esta función para impedir que
+    una etiqueta generada por la ruta se reutilice como evidencia clínica.
+    """
+    categorias = {
+        "DATOS_OBSERVADOS": [],
+        "INFERENCIAS_PEDAGOGICAS": [],
+        "SOSPECHAS": [],
+        "SUGERENCIAS_NANDA": [],
+    }
+    observados = categorias["DATOS_OBSERVADOS"]
+    inferencias = categorias["INFERENCIAS_PEDAGOGICAS"]
+    sospechas = categorias["SOSPECHAS"]
+
+    if salida_liquido:
+        observados.append("salida de líquido transvaginal")
+        sospechas.extend(["sospecha de ruptura de membranas", "requiere valoración obstétrica"])
+    if liquido_fetido:
+        observados.append("líquido fétido")
+        sospechas.append("posible riesgo infeccioso")
+    if liquido_verdoso:
+        observados.append("líquido verdoso")
+        sospechas.append("características del líquido que requieren valoración")
+    if temperatura is not None:
+        observados.append(f"temperatura medida {temperatura}°C")
+        if _alcanza(temperatura, 38):
+            inferencias.append("fiebre")
+            sospechas.append("signo compatible que requiere valoración de infección")
+
+    return categorias
+
+
 def extraer_hallazgos_obstetricos(
     tipo_paciente,
     semanas_gestacion=None,
@@ -76,17 +115,13 @@ def extraer_hallazgos_obstetricos(
     if sangrado_vaginal:
         hallazgos.append("sangrado vaginal")
     if salida_liquido:
-        hallazgos.extend([
-            "salida de líquido transvaginal",
-            "sospecha de ruptura de membranas",
-            "requiere valoración obstétrica",
-        ])
+        hallazgos.append("salida de líquido transvaginal")
     if liquido_fetido:
-        hallazgos.extend(["líquido fétido", "posible riesgo de infección"])
+        hallazgos.append("líquido fétido")
     if liquido_verdoso:
-        hallazgos.extend(["líquido verdoso", "requiere valoración de bienestar fetal"])
+        hallazgos.append("líquido verdoso")
     if _alcanza(temperatura, 38):
-        hallazgos.extend(["fiebre", "temperatura elevada", "posible riesgo de infección"])
+        hallazgos.append("fiebre")
     if dolor_abdominal_intenso:
         hallazgos.extend(["dolor abdominal intenso", "dolor agudo", "prioridad alta"])
     if contracciones_antes_termino:
@@ -96,6 +131,7 @@ def extraer_hallazgos_obstetricos(
     movimientos_alterados = disminucion_mov_fetales or movimientos_fetales in {"Disminuidos", "Ausentes"}
     if contexto_gestacional and movimientos_alterados:
         hallazgos.extend([
+            "dato fetal observado",
             "disminución de movimientos fetales",
             "requiere valoración de bienestar fetal",
             "prioridad alta",
@@ -182,11 +218,16 @@ def generar_alertas_obstetricas(
         })
 
     if salida_liquido:
-        nivel = "Alta" if _menor_que(semanas_gestacion, 37) else "Media"
+        if semanas_gestacion is None:
+            clasificacion = "edad gestacional no valorada"
+        elif _menor_que(semanas_gestacion, 37):
+            clasificacion = "gestación pretérmino"
+        else:
+            clasificacion = "gestación a término"
         alertas.append({
-            "Nivel": nivel,
+            "Nivel": "Requiere valoración",
             "Área": "Obstétrico / salida de líquido",
-            "Alerta": "Salida de líquido transvaginal: sospecha de ruptura de membranas que requiere valoración.",
+            "Alerta": f"Salida de líquido transvaginal ({clasificacion}): sospecha de ruptura de membranas que requiere valoración.",
             "Acción sugerida": "Registrar hora, color, olor, cantidad, fiebre, dolor, movimientos fetales y referir/avisar según protocolo."
         })
 
@@ -199,11 +240,17 @@ def generar_alertas_obstetricas(
             datos_registrados.append("líquido fétido")
         if liquido_verdoso:
             datos_registrados.append("líquido verdoso")
+        if fiebre_medida and (liquido_fetido or liquido_verdoso):
+            area_alerta = "Obstétrico / características del líquido y fiebre"
+        elif fiebre_medida:
+            area_alerta = "Obstétrico / fiebre materna"
+        else:
+            area_alerta = "Obstétrico / características del líquido"
         alertas.append({
-            "Nivel": "Alta",
-            "Área": "Obstétrico / riesgo infeccioso o bienestar fetal",
+            "Nivel": "Requiere valoración",
+            "Área": area_alerta,
             "Alerta": f"Datos de alarma registrados: {', '.join(datos_registrados)}.",
-            "Acción sugerida": "Valorar posible riesgo infeccioso y estado materno-fetal; notificar según protocolo."
+            "Acción sugerida": "Contextualizar signos compatibles, valorar infección y bienestar materno-fetal sin confirmar diagnósticos; notificar según protocolo."
         })
 
     if dolor_abdominal_intenso:
@@ -348,16 +395,20 @@ def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=None, pa_sistolic
         datos_rpm.append(f"fiebre {temperatura}°C" if fiebre_medida else "fiebre referida")
 
     if datos_rpm:
-        nivel = "Alta" if (
-            liquido_fetido or fiebre_medida or liquido_verdoso or
-            tiene("líquido fétido", "liquido fetido", "fiebre", "líquido verdoso", "liquido verdoso")
-        ) else "Media"
-        datos_rpm = list(dict.fromkeys(datos_rpm))
-        nombre_ruta = (
-            "Sospecha de ruptura de membranas / riesgo infeccioso"
-            if sospecha_rpm
-            else "Evaluación de riesgo infeccioso obstétrico"
+        signos_infeccion = (
+            liquido_fetido or fiebre_medida
+            or tiene("líquido fétido", "liquido fetido", "fiebre")
         )
+        nivel = "Requiere valoración"
+        datos_rpm = list(dict.fromkeys(datos_rpm))
+        if sospecha_rpm and signos_infeccion:
+            nombre_ruta = "Salida de líquido con signos que requieren valoración de infección"
+        elif sospecha_rpm:
+            nombre_ruta = "Salida de líquido / sospecha de ruptura de membranas"
+        elif signos_infeccion:
+            nombre_ruta = "Signos que requieren valoración de infección"
+        else:
+            nombre_ruta = "Características del líquido que requieren valoración"
         rutas.append({
             "Ruta": nombre_ruta,
             "Nivel": nivel,
@@ -366,11 +417,9 @@ def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=None, pa_sistolic
         })
         if sospecha_rpm:
             datos.extend(["salida de líquido transvaginal", "sospecha de ruptura de membranas"])
-        if liquido_fetido or liquido_verdoso or fiebre_medida or tiene(
-            "líquido fétido", "liquido fetido", "fiebre", "líquido verdoso", "liquido verdoso"
-        ):
-            datos.append("posible riesgo de infección")
-        datos.extend(["vigilancia obstétrica", "requiere valoración obstétrica"])
+        if signos_infeccion:
+            datos.append("signos compatibles que requieren valoración de infección")
+        datos.append("requiere valoración obstétrica")
 
     # =========================
     # RUTA DE VALORACIÓN DE SANGRADO OBSTÉTRICO

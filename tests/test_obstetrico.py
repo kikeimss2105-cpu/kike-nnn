@@ -6,6 +6,7 @@ import pytest
 
 from engine.interpretaciones import interpretar_pa_obstetrica
 from engine.obstetrico import (
+    clasificar_datos_rpm,
     evaluar_rutas_obstetricas,
     extraer_hallazgos_obstetricos,
     generar_alertas_obstetricas,
@@ -221,7 +222,8 @@ def test_liquido_fetido_sin_temperatura_no_fabrica_fiebre_ni_infeccion_confirmad
     alertas = _alertas(semanas_gestacion=30, liquido_fetido=True)
     texto = " ".join(hallazgos + [str(alerta) for alerta in alertas]).lower()
     assert "fiebre" not in texto
-    assert "posible riesgo de infección" in texto
+    categorias = clasificar_datos_rpm(liquido_fetido=True, temperatura=None)
+    assert "posible riesgo infeccioso" in categorias["SOSPECHAS"]
     assert "infección confirmada" not in texto
     datos, _ = evaluar_rutas_obstetricas(
         "Obstétrico", semanas_gestacion=30, liquido_fetido=True, temperatura=None
@@ -236,6 +238,100 @@ def test_salida_liquido_es_sospecha_y_no_diagnostico_definitivo():
     )
     assert "sospecha de ruptura de membranas" in " ".join(datos).lower()
     assert "Valorar posible ruptura" in resumen
+    assert "rpm confirmada" not in resumen.lower()
+    assert "ruptura prematura de membranas confirmada" not in resumen.lower()
+
+
+def test_salida_liquido_sin_edad_gestacional_conserva_no_valorado():
+    categorias = clasificar_datos_rpm(salida_liquido=True)
+    [alerta] = _alertas(salida_liquido=True, semanas_gestacion=None)
+
+    assert categorias["DATOS_OBSERVADOS"] == ["salida de líquido transvaginal"]
+    assert "sospecha de ruptura de membranas" in categorias["SOSPECHAS"]
+    assert "edad gestacional no valorada" in alerta["Alerta"]
+
+
+@pytest.mark.parametrize(
+    ("semanas", "clasificacion"),
+    [(36, "gestación pretérmino"), (37, "gestación a término")],
+)
+def test_salida_liquido_distingue_semana_36_y_37(semanas, clasificacion):
+    [alerta] = _alertas(salida_liquido=True, semanas_gestacion=semanas)
+    assert clasificacion in alerta["Alerta"]
+
+
+def test_fiebre_aislada_no_genera_corioamnionitis():
+    categorias = clasificar_datos_rpm(temperatura=38.0)
+    alertas = _alertas(temperatura=38.0)
+    _, resumen = evaluar_rutas_obstetricas("Obstétrico", temperatura=38.0)
+    texto = " ".join(
+        sum(categorias.values(), []) + [str(alertas), resumen]
+    ).lower()
+    assert "fiebre" in texto
+    assert "corioamnionitis" not in texto
+    assert "infección confirmada" not in texto
+
+
+def test_liquido_verdoso_no_fabrica_compromiso_fetal():
+    categorias = clasificar_datos_rpm(liquido_verdoso=True)
+    alertas = _alertas(liquido_verdoso=True)
+    datos, resumen = evaluar_rutas_obstetricas(
+        "Obstétrico", liquido_verdoso=True,
+        movimientos_fetales="No aplica / no valorado",
+    )
+    texto = " ".join(sum(categorias.values(), []) + datos + [str(alertas), resumen]).lower()
+    assert "líquido verdoso" in texto
+    assert "compromiso fetal" not in texto
+    assert "sufrimiento fetal" not in texto
+    assert "alteración de la díada" not in texto
+
+
+def test_dolor_y_contracciones_ausentes_permanecen_ausentes_en_ruta_rpm():
+    datos, resumen = evaluar_rutas_obstetricas(
+        "Obstétrico", semanas_gestacion=36, salida_liquido=True,
+        dolor_abdominal=False, contracciones=False,
+    )
+    activadores = resumen.split("Acción educativa:", 1)[0].lower()
+    assert "dolor" not in activadores
+    assert "contracciones" not in activadores
+    assert not any("dolor" in dato or "contracciones" in dato for dato in datos)
+
+
+def test_ruta_rpm_separa_observado_sospecha_y_sugerencia_nanda():
+    categorias = clasificar_datos_rpm(
+        salida_liquido=True, liquido_fetido=True, temperatura=38.0,
+    )
+    assert categorias["DATOS_OBSERVADOS"] == [
+        "salida de líquido transvaginal", "líquido fétido", "temperatura medida 38.0°C",
+    ]
+    assert categorias["INFERENCIAS_PEDAGOGICAS"] == ["fiebre"]
+    assert "sospecha de ruptura de membranas" in categorias["SOSPECHAS"]
+    assert categorias["SUGERENCIAS_NANDA"] == []
+
+
+def test_sin_dato_fetal_no_genera_nanda_materno_fetal_ni_estado_fetal():
+    pytest.importorskip("pandas")
+    from engine.carga import cargar_catalogos
+    from engine.motor import buscar_diagnosticos
+
+    catalogos = cargar_catalogos("data")
+    categorias = clasificar_datos_rpm(
+        salida_liquido=True, liquido_fetido=True, liquido_verdoso=True,
+    )
+    texto_observado = "Obstétrico embarazo " + " ".join(categorias["DATOS_OBSERVADOS"])
+    resultados = buscar_diagnosticos(texto_observado, catalogos.nanda, catalogos.enlaces)
+
+    if not resultados.empty:
+        assert not resultados["NANDA"].str.contains("materno-fetal", case=False).any()
+        assert not resultados["NOC sugerido"].str.contains("Estado fetal", case=False).any()
+
+
+def test_etiquetas_de_ruta_no_se_reutilizan_como_evidencia_nanda():
+    categorias = clasificar_datos_rpm(salida_liquido=True, liquido_fetido=True)
+    texto_observado = " ".join(categorias["DATOS_OBSERVADOS"])
+    assert "sospecha de ruptura" not in texto_observado
+    assert "riesgo" not in texto_observado
+    assert categorias["SUGERENCIAS_NANDA"] == []
 
 
 def test_disuria_no_fabrica_diagnostico_de_infeccion_urinaria():

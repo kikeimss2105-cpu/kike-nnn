@@ -121,8 +121,8 @@ casos_obst = [
      '[Crítica] Evaluación de trastorno hipertensivo: PA 165/115 desde semana 20 o más, PA severa, convulsiones. '
      'Acción educativa: Valorar signos de severidad, proteinuria si procede, bienestar fetal y activar protocolo institucional.'),
     (dict(tipo_paciente="Obstétrico", semanas_gestacion=32, salida_liquido=True, liquido_fetido=True, temperatura=38.5),
-     ['salida de líquido transvaginal', 'sospecha de ruptura de membranas', 'posible riesgo de infección', 'vigilancia obstétrica', 'requiere valoración obstétrica'],
-     '[Alta] Sospecha de ruptura de membranas / riesgo infeccioso: salida de líquido transvaginal, líquido fétido, fiebre 38.5°C. '
+     ['salida de líquido transvaginal', 'sospecha de ruptura de membranas', 'signos compatibles que requieren valoración de infección', 'requiere valoración obstétrica'],
+     '[Requiere valoración] Salida de líquido con signos que requieren valoración de infección: salida de líquido transvaginal, líquido fétido, fiebre 38.5°C. '
      'Acción educativa: Valorar posible ruptura de membranas, temperatura, características del líquido, dolor, bienestar fetal y posible riesgo infeccioso según protocolo.'),
     (dict(tipo_paciente="Obstétrico", semanas_gestacion=32, movimientos_fetales="Ausentes"),
      ['disminución de movimientos fetales', 'vigilancia fetal', 'requiere valoración de bienestar fetal', 'signos de alarma obstétrica'],
