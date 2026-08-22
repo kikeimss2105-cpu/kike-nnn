@@ -52,22 +52,50 @@ página, regla respaldada, decisión y nombre/rol de quien revisó.
 
 ## Mapeo P0 de fuentes para reglas obstétricas
 
-Este mapeo registra la asignación indicada por la decisión humana
-`P0-OBSTETRICIA`. No afirma que la fuente haya sido cotejada ni que la regla
-esté clínicamente validada. Faltan versión, fecha, sección/página y constancia
-de revisión para cada referencia.
+Este mapeo registra la asignación indicada por decisiones humanas P0. El estado
+de cada fila distingue las fuentes cotejadas con límites de las referencias que
+continúan pendientes. Un cotejo acotado no valida reglas adicionales por
+analogía.
 
 | Grupo de reglas | Contenido implementado | Fuente indicada | Estado |
 |---|---|---|---|
 | P0-OBS-R001–R005, R015–R025, R045–R052, R063–R064 y R069–R073 | PA, signos de alarma y evaluación de trastorno hipertensivo | IMSS-058; IMSS-586; ACOG | `FUENTE_DECLARADA_PENDIENTE_REVISION` |
 | P0-OBS-R007–R009 y R026–R032 | Salida de líquido, sospecha de ruptura de membranas y signos que requieren valoración de infección | IMSS-321-11 | `FUENTE_COTEJADA_CON_LIMITES` |
-| P0-OBS-R011, R035, R038 y R059 | Contracciones antes de término con edad gestacional menor de 37 semanas | IMSS-063-08 | `FUENTE_DECLARADA_PENDIENTE_REVISION` |
+| P0-OBS-R011, R035, R038 y R059 | Contracciones uterinas en contexto gestacional pretérmino que requieren valoración, sin diagnosticar parto pretérmino | IMSS-063-08 | `FUENTE_COTEJADA_CON_LIMITES` |
 | P0-OBS-R006, R033–R036, R053 y R066 | Sangrado vaginal y ruta de valoración de sangrado obstétrico | IMSS-162-09, *Diagnóstico y tratamiento del choque hemorrágico en obstetricia*, actualización 2017 | `VALIDADO_CON_LIMITES` |
 | P0-OBS-R012–R014, R040–R044, R054–R062 y R065–R068 | Control prenatal, alarmas generales y valoración materno-fetal | IMSS-028; IMSS-436, cuando corresponda | `FUENTE_DECLARADA_PENDIENTE_REVISION` |
 
 La referencia histórica IMSS-020 permanece declarada en `OBS-HTA-001`, pero
 no se usa para sustituir ni inferir el identificador IMSS-058 indicado en la
 decisión P0. La discrepancia bibliográfica requiere revisión humana.
+
+### Decisión humana P0-Parto pretérmino/contracciones
+
+- **Institución:** Instituto Mexicano del Seguro Social.
+- **Clave:** IMSS-063-08.
+- **Título:** *Prevención, diagnóstico y tratamiento del parto pretérmino*.
+- **Estado:** fuente oficial cotejada con límites.
+- **Año/actualización, sección, página y URL:** no registrados en el
+  repositorio; no se completan por analogía ni desde conocimiento externo.
+- Las contracciones uterinas y la edad gestacional pretérmino no equivalen por
+  sí solas a amenaza de parto pretérmino, trabajo de parto pretérmino ni parto
+  pretérmino.
+- La GPC exige un patrón de actividad uterina y cambios cervicales para esos
+  diagnósticos. KIKE-NNN no modela actualmente datos suficientes para
+  establecerlos.
+- Las semanas válidas se limitan a `1–42`; `None` significa no valorado y `0`
+  no se interpreta como edad gestacional clínica válida.
+- La interfaz captura semanas enteras. Los días gestacionales, incluida la
+  representación `36+6`, no se modelan en esta fase.
+- Con semanas válidas `<37`, las contracciones se expresan únicamente como
+  `contracciones uterinas en gestación pretérmino: requiere valoración`.
+- Contracciones aisladas no crean dolor, riesgo de alteración de la díada,
+  diagnóstico de parto pretérmino ni NANDA `Dolor de parto`.
+- Sangrado, salida de líquido, fiebre y movimientos fetales se conservan como
+  datos y rutas separadas cuando coexisten con contracciones.
+- Permanecen bloqueados farmacología, tocolíticos, corticoesteroides, cambios
+  cervicales o pruebas ficticias y los diagnósticos automáticos de amenaza,
+  trabajo de parto pretérmino o parto pretérmino.
 
 ### Decisión humana P0-RPM/infección
 
@@ -141,8 +169,9 @@ no se implementan hasta tener datos y contratos suficientes.
   no fabrica infección urinaria.
 - Sangrado vaginal aislado activa valoración y caracterización, no una
   clasificación de hemorragia o choque, y no fabrica compromiso fetal.
-- Contracciones pretérmino exigen menos de 37 semanas tanto para booleanos
-  como para texto.
+- La clasificación pedagógica `contracciones en gestación pretérmino` exige
+  semanas válidas `<37` tanto para booleanos como para texto. No equivale a
+  amenaza, trabajo de parto ni parto pretérmino.
 - Movimientos fetales disminuidos/ausentes requieren 20 semanas o más en este
   tamizaje y activan valoración, no diagnóstico fetal.
 - PA, semanas y temperatura ausentes se conservan como `None`/no valorado.
@@ -165,6 +194,9 @@ no se implementan hasta tener datos y contratos suficientes.
 9. Mantener bloqueados el diagnóstico automático de corioamnionitis, el
    tratamiento de RPM y las decisiones obstétricas definitivas.
 10. Mantener la farmacología bloqueada.
+11. Mantener bloqueados tocolíticos, corticoesteroides y los diagnósticos
+    automáticos de amenaza, trabajo de parto pretérmino y parto pretérmino
+    mientras el contrato no modele actividad uterina y cambios cervicales.
 
 ## Decisión humana P0 sobre OBS-HTA-001
 

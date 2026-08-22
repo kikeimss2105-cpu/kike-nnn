@@ -543,7 +543,8 @@ with tab_braden:
         col_o1, col_o2, col_o3 = st.columns(3)
 
         with col_o1:
-            semanas_gestacion = st.number_input("Semanas de gestación", min_value=0, max_value=42, value=None, step=1, placeholder="No valorado")
+            semanas_gestacion = st.number_input("Semanas de gestación", min_value=1, max_value=42, value=None, step=1, placeholder="No valorado")
+            st.caption("Registro en semanas enteras; los días gestacionales no se modelan en esta fase.")
             pas = st.number_input("Presión sistólica (mmHg)", min_value=60, max_value=240, value=None, step=1, placeholder="No valorada")
 
         with col_o2:
@@ -580,7 +581,7 @@ with tab_braden:
             liquido_fetido = st.checkbox("Líquido con mal olor")
             liquido_verdoso = st.checkbox("Líquido verdoso")
             dolor_abdominal_intenso = st.checkbox("Dolor abdominal intenso")
-            contracciones_antes_termino = st.checkbox("Contracciones antes de término")
+            contracciones_antes_termino = st.checkbox("Contracciones uterinas")
             disminucion_mov_fetales = st.checkbox("Disminución o ausencia de movimientos fetales")
             nausea_vomito_persistente = st.checkbox("Náusea/vómito persistente")
             disuria_obstetrica = st.checkbox("Dolor o molestia al orinar")

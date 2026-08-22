@@ -75,10 +75,21 @@ def buscar_diagnosticos(texto_clinico, nanda_df, enlaces_df):
     resultados = []
     texto_normalizado = normalizar_texto(texto_clinico)
     datos_fetales_observados = "dato fetal observado" in texto_normalizado
+    dolor_observado = any(
+        termino in texto_normalizado
+        for termino in (
+            "dolor de parto",
+            "dolor abdominal",
+            "dolor uterino",
+            "contracciones dolorosas",
+        )
+    )
 
     for _, fila in nanda_df.iterrows():
         nombre_nanda = normalizar_texto(fila.get("nanda", ""))
         if "materno-fetal" in nombre_nanda and not datos_fetales_observados:
+            continue
+        if nombre_nanda == "dolor de parto" and not dolor_observado:
             continue
         puntaje, coincidencias = calcular_puntaje(texto_clinico, fila)
 

@@ -25,7 +25,7 @@ from engine.interpretaciones import (
     interpretar_riesgo_caidas, interpretar_spo2, interpretar_fr_adulto,
     interpretar_fr_por_tipo, interpretar_pa_obstetrica,
 )
-from engine.obstetrico import evaluar_rutas_obstetricas
+from engine.obstetrico import evaluar_rutas_obstetricas, extraer_hallazgos_obstetricos
 from engine.resumen import generar_resumen_clinico, generar_alertas_clinicas, alertas_a_texto
 
 fallos = []
@@ -133,6 +133,39 @@ for i, (kwargs, datos_esp, resumen_esp) in enumerate(casos_obst):
     datos, resumen = evaluar_rutas_obstetricas(**kwargs)
     check(f"ruta obstétrica[{i}] datos", datos_esp, datos)
     check(f"ruta obstétrica[{i}] resumen", resumen_esp, resumen)
+
+datos_contracciones, resumen_contracciones = evaluar_rutas_obstetricas(
+    "Obstétrico", semanas_gestacion=36, contracciones=True,
+)
+check(
+    "contracciones pretérmino: datos sin dolor ni díada",
+    ["contracciones uterinas", "contracciones en gestación pretérmino"],
+    datos_contracciones,
+)
+check(
+    "contracciones pretérmino: ruta no diagnóstica",
+    "[Requiere valoración] Contracciones uterinas en gestación pretérmino / requiere valoración: "
+    "contracciones uterinas en gestación pretérmino. Acción educativa: Valorar frecuencia, duración, "
+    "regularidad, dolor, salida de líquido, sangrado y cambios cervicales conforme a protocolo.",
+    resumen_contracciones,
+)
+hallazgos_contracciones = extraer_hallazgos_obstetricos(
+    "Obstétrico", semanas_gestacion=36, contracciones_antes_termino=True,
+)
+dx_contracciones = buscar_diagnosticos(" ".join(hallazgos_contracciones), CAT.nanda, CAT.enlaces)
+check(
+    "contracciones aisladas: no NANDA Dolor de parto",
+    False,
+    not dx_contracciones.empty and "Dolor de parto" in dx_contracciones["NANDA"].tolist(),
+)
+check(
+    "contracciones aisladas: no NOC/NIC de dolor de parto",
+    False,
+    not dx_contracciones.empty and (
+        dx_contracciones["NOC sugerido"].str.contains("Control del dolor|Bienestar materno", regex=True).any()
+        or dx_contracciones["NIC sugerido"].str.contains("Manejo del dolor del parto|Apoyo emocional", regex=True).any()
+    ),
+)
 
 # ---------------------------------------------------------------
 # Resumen clínico — escalas "No valorado" deben omitirse, no imprimirse

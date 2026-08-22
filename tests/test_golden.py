@@ -24,7 +24,7 @@ def test_golden_runner_completo() -> None:
     salida = resultado.stdout + resultado.stderr
 
     assert resultado.returncode == 0, salida
-    assert "Pruebas OK: 98" in salida
+    assert "Pruebas OK: 102" in salida
     assert "Fallos:     0" in salida
     assert "TODOS LOS GOLDEN TESTS PASARON" in salida
 

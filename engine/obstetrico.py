@@ -15,6 +15,18 @@ def _menor_que(valor, umbral):
     return valor is not None and valor < umbral
 
 
+def _semanas_gestacion_validas(valor):
+    return (
+        isinstance(valor, (int, float))
+        and not isinstance(valor, bool)
+        and 1 <= valor <= 42
+    )
+
+
+def _gestacion_pretermino(semanas_gestacion):
+    return _semanas_gestacion_validas(semanas_gestacion) and semanas_gestacion < 37
+
+
 def _pa_texto(pas, pad):
     sistolica = "no valorada" if pas is None else str(pas)
     diastolica = "no valorada" if pad is None else str(pad)
@@ -88,7 +100,7 @@ def extraer_hallazgos_obstetricos(
         return []
 
     hallazgos = ["embarazo", "paciente obstétrica", "vigilancia obstétrica"]
-    contexto_gestacional = _alcanza(semanas_gestacion, 20)
+    contexto_gestacional = _semanas_gestacion_validas(semanas_gestacion) and _alcanza(semanas_gestacion, 20)
     pa_elevada = _alcanza(pas, 140) or _alcanza(pad, 90)
     pa_severa = _alcanza(pas, 160) or _alcanza(pad, 110)
 
@@ -126,8 +138,8 @@ def extraer_hallazgos_obstetricos(
         hallazgos.extend(["dolor abdominal intenso", "dolor agudo", "prioridad alta"])
     if contracciones_antes_termino:
         hallazgos.append("contracciones uterinas")
-        if _menor_que(semanas_gestacion, 37):
-            hallazgos.append("contracciones antes de término")
+        if _gestacion_pretermino(semanas_gestacion):
+            hallazgos.append("contracciones en gestación pretérmino")
     movimientos_alterados = disminucion_mov_fetales or movimientos_fetales in {"Disminuidos", "Ausentes"}
     if contexto_gestacional and movimientos_alterados:
         hallazgos.extend([
@@ -220,7 +232,9 @@ def generar_alertas_obstetricas(
     if salida_liquido:
         if semanas_gestacion is None:
             clasificacion = "edad gestacional no valorada"
-        elif _menor_que(semanas_gestacion, 37):
+        elif not _semanas_gestacion_validas(semanas_gestacion):
+            clasificacion = "edad gestacional fuera del rango válido"
+        elif _gestacion_pretermino(semanas_gestacion):
             clasificacion = "gestación pretérmino"
         else:
             clasificacion = "gestación a término"
@@ -261,12 +275,12 @@ def generar_alertas_obstetricas(
             "Acción sugerida": "Valorar sangrado, dinámica uterina, signos vitales, edad gestacional y protocolo de urgencia obstétrica."
         })
 
-    if contracciones_antes_termino and _menor_que(semanas_gestacion, 37):
+    if contracciones_antes_termino and _gestacion_pretermino(semanas_gestacion):
         alertas.append({
-            "Nivel": "Media",
-            "Área": "Obstétrico / parto pretérmino",
-            "Alerta": "Contracciones antes de las 37 semanas.",
-            "Acción sugerida": "Valorar frecuencia, duración, dolor, salida de líquido, sangrado y protocolo de amenaza de parto pretérmino."
+            "Nivel": "Requiere valoración",
+            "Área": "Obstétrico / contracciones uterinas",
+            "Alerta": "Contracciones uterinas en gestación pretérmino: requiere valoración.",
+            "Acción sugerida": "Valorar frecuencia, duración, regularidad, dolor, salida de líquido, sangrado y cambios cervicales conforme a protocolo."
         })
 
     if disminucion_mov_fetales and _alcanza(semanas_gestacion, 20):
@@ -331,7 +345,7 @@ def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=None, pa_sistolic
     # =========================
     datos_hipertensivos = []
 
-    contexto_gestacional = _alcanza(semanas_gestacion, 20)
+    contexto_gestacional = _semanas_gestacion_validas(semanas_gestacion) and _alcanza(semanas_gestacion, 20)
     pa_elevada = contexto_gestacional and (
         _alcanza(pa_sistolica, 140) or _alcanza(pa_diastolica, 90)
     )
@@ -438,12 +452,6 @@ def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=None, pa_sistolic
             datos_hemorragicos.append("sangrado obstétrico")
         if dolor_abdominal or tiene("dolor abdominal", "dolor uterino"):
             datos_hemorragicos.append("dolor abdominal")
-        contracciones_pretermino = _menor_que(semanas_gestacion, 37) and (
-            contracciones or tiene("contracciones antes de término", "contracciones antes de termino")
-        )
-        if contracciones_pretermino:
-            datos_hemorragicos.append("contracciones antes de término")
-
         datos_hemorragicos = list(dict.fromkeys(datos_hemorragicos))
         rutas.append({
             "Ruta": "Sangrado obstétrico / requiere valoración",
@@ -458,13 +466,9 @@ def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=None, pa_sistolic
     # Dolor sin sangrado no debe contaminar como hemorragia.
     # =========================
     datos_dolor = []
-    if dolor_abdominal or tiene("dolor abdominal", "dolor uterino"):
+    dolor_observado = dolor_abdominal or tiene("dolor abdominal", "dolor uterino")
+    if dolor_observado:
         datos_dolor.append("dolor abdominal/uterino")
-    contracciones_pretermino = _menor_que(semanas_gestacion, 37) and (
-        contracciones or tiene("contracciones antes de término", "contracciones antes de termino")
-    )
-    if contracciones_pretermino:
-        datos_dolor.append("contracciones antes de término")
 
     if datos_dolor and not sangrado_real:
         datos_dolor = list(dict.fromkeys(datos_dolor))
@@ -483,10 +487,26 @@ def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=None, pa_sistolic
         ])
 
     # =========================
+    # RUTA DE CONTRACCIONES EN CONTEXTO PRETÉRMINO
+    # No equivale a amenaza, trabajo de parto ni parto pretérmino.
+    # =========================
+    contracciones_pretermino = _gestacion_pretermino(semanas_gestacion) and (
+        contracciones or tiene("contracciones antes de término", "contracciones antes de termino")
+    )
+    if contracciones_pretermino:
+        rutas.append({
+            "Ruta": "Contracciones uterinas en gestación pretérmino / requiere valoración",
+            "Nivel": "Requiere valoración",
+            "Datos activadores": "contracciones uterinas en gestación pretérmino",
+            "Acción educativa": "Valorar frecuencia, duración, regularidad, dolor, salida de líquido, sangrado y cambios cervicales conforme a protocolo."
+        })
+        datos.extend(["contracciones uterinas", "contracciones en gestación pretérmino"])
+
+    # =========================
     # RUTA BIENESTAR FETAL
     # =========================
     datos_fetales = []
-    edad_para_movimientos = _alcanza(semanas_gestacion, 20)
+    edad_para_movimientos = _semanas_gestacion_validas(semanas_gestacion) and _alcanza(semanas_gestacion, 20)
     if edad_para_movimientos and movimientos_fetales in ["Disminuidos", "Ausentes"]:
         datos_fetales.append(f"movimientos fetales {movimientos_fetales.lower()}")
     if edad_para_movimientos and tiene("disminución de movimientos fetales", "disminucion de movimientos fetales", "movimientos fetales disminuidos", "movimientos fetales ausentes"):

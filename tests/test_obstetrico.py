@@ -346,10 +346,11 @@ def test_disuria_no_fabrica_diagnostico_de_infeccion_urinaria():
     [(36, True), (37, False)],
 )
 def test_contracciones_antes_de_termino_exigen_menos_de_37_semanas(semanas, activa):
-    _, resumen = evaluar_rutas_obstetricas(
+    datos, resumen = evaluar_rutas_obstetricas(
         "Obstétrico", semanas_gestacion=semanas, contracciones=True
     )
-    assert ("contracciones antes de término" in resumen) is activa
+    assert ("contracciones uterinas en gestación pretérmino" in resumen.lower()) is activa
+    assert ("contracciones en gestación pretérmino" in datos) is activa
 
 
 def test_contracciones_textuales_tambien_exigen_menos_de_37_semanas():
@@ -361,8 +362,108 @@ def test_contracciones_textuales_tambien_exigen_menos_de_37_semanas():
         "Obstétrico", semanas_gestacion=37,
         hallazgos_detectados=["contracciones antes de término"],
     )
-    assert "contracciones antes de término" in resumen_36
-    assert "contracciones antes de término" not in resumen_37
+    assert "contracciones uterinas en gestación pretérmino" in resumen_36.lower()
+    assert "contracciones uterinas en gestación pretérmino" not in resumen_37.lower()
+
+
+@pytest.mark.parametrize("semanas", [None, 0, -1, 43])
+def test_edad_gestacional_no_valorada_o_fuera_de_rango_no_clasifica_pretermino(semanas):
+    hallazgos = extraer_hallazgos_obstetricos(
+        "Obstétrico", semanas_gestacion=semanas,
+        contracciones_antes_termino=True,
+    )
+    datos, resumen = evaluar_rutas_obstetricas(
+        "Obstétrico", semanas_gestacion=semanas, contracciones=True,
+    )
+    alertas = _alertas(
+        semanas_gestacion=semanas, contracciones_antes_termino=True,
+    )
+
+    assert "contracciones uterinas" in hallazgos
+    assert "contracciones en gestación pretérmino" not in hallazgos
+    assert "contracciones en gestación pretérmino" not in datos
+    assert "gestación pretérmino" not in resumen
+    assert not any("gestación pretérmino" in str(alerta) for alerta in alertas)
+
+
+def test_contracciones_a_36_requieren_valoracion_sin_diagnosticar():
+    datos, resumen = evaluar_rutas_obstetricas(
+        "Obstétrico", semanas_gestacion=36, contracciones=True,
+    )
+    alertas = _alertas(
+        semanas_gestacion=36, contracciones_antes_termino=True,
+    )
+    texto = " ".join(datos + [resumen, str(alertas)]).lower()
+
+    assert "contracciones uterinas en gestación pretérmino" in texto
+    assert "requiere valoración" in texto
+    assert "amenaza de parto pretérmino" not in texto
+    assert "trabajo de parto pretérmino" not in texto
+    assert "parto pretérmino" not in texto
+
+
+def test_contracciones_aisladas_no_generan_dolor_ni_riesgo_de_diada():
+    datos, resumen = evaluar_rutas_obstetricas(
+        "Obstétrico", semanas_gestacion=36, contracciones=True,
+    )
+    activadores = resumen.split("Acción educativa:", 1)[0].lower()
+
+    assert "dolor" not in activadores
+    assert not any("dolor" in dato for dato in datos)
+    assert "riesgo de alteración de la díada materno-fetal" not in datos
+
+
+def test_contracciones_aisladas_no_generan_nanda_noc_nic_de_dolor():
+    pytest.importorskip("pandas")
+    from engine.carga import cargar_catalogos
+    from engine.motor import buscar_diagnosticos
+
+    catalogos = cargar_catalogos("data")
+    hallazgos = extraer_hallazgos_obstetricos(
+        "Obstétrico", semanas_gestacion=36,
+        contracciones_antes_termino=True,
+    )
+    resultados = buscar_diagnosticos(" ".join(hallazgos), catalogos.nanda, catalogos.enlaces)
+
+    if not resultados.empty:
+        assert "Dolor de parto" not in resultados["NANDA"].tolist()
+        assert not resultados["NOC sugerido"].str.contains(
+            "Control del dolor|Bienestar materno", case=False, regex=True,
+        ).any()
+        assert not resultados["NIC sugerido"].str.contains(
+            "Manejo del dolor del parto|Apoyo emocional", case=False, regex=True,
+        ).any()
+
+
+def test_contracciones_y_sangrado_permanecen_en_rutas_separadas_sin_dolor():
+    datos, resumen = evaluar_rutas_obstetricas(
+        "Obstétrico", semanas_gestacion=36,
+        contracciones=True, sangrado=True,
+    )
+    assert "Sangrado obstétrico / requiere valoración" in resumen
+    assert "Contracciones uterinas en gestación pretérmino" in resumen
+    assert not any("dolor" in dato for dato in datos)
+
+
+@pytest.mark.parametrize(
+    ("cambios", "ruta_adicional"),
+    [
+        ({"salida_liquido": True}, "Salida de líquido / sospecha de ruptura de membranas"),
+        ({"temperatura": 38.0}, "Signos que requieren valoración de infección"),
+        ({"movimientos_fetales": "Disminuidos"}, "Bienestar fetal"),
+    ],
+)
+def test_interacciones_con_contracciones_no_fabrican_dolor_ni_diagnostico(cambios, ruta_adicional):
+    datos, resumen = evaluar_rutas_obstetricas(
+        "Obstétrico", semanas_gestacion=36, contracciones=True, **cambios,
+    )
+    assert ruta_adicional in resumen
+    assert "Contracciones uterinas en gestación pretérmino" in resumen
+    assert not any("dolor" in dato for dato in datos)
+    assert "riesgo de alteración de la díada materno-fetal" not in datos
+    assert "amenaza de parto pretérmino" not in resumen.lower()
+    assert "trabajo de parto pretérmino" not in resumen.lower()
+    assert "parto pretérmino" not in resumen.lower()
 
 
 @pytest.mark.parametrize(("semanas", "activa"), [(19, False), (20, True)])
