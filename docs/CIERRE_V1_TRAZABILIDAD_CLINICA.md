@@ -59,12 +59,34 @@ de revisión para cada referencia.
 | P0-OBS-R001–R005, R015–R025, R045–R052, R063–R064 y R069–R073 | PA, signos de alarma y evaluación de trastorno hipertensivo | IMSS-058; IMSS-586; ACOG | `FUENTE_DECLARADA_PENDIENTE_REVISION` |
 | P0-OBS-R007–R009 y R026–R032 | Sospecha de ruptura de membranas y posible riesgo infeccioso | IMSS-321-11 | `FUENTE_DECLARADA_PENDIENTE_REVISION` |
 | P0-OBS-R011, R035, R038 y R059 | Contracciones antes de término con edad gestacional menor de 37 semanas | IMSS-063-08 | `FUENTE_DECLARADA_PENDIENTE_REVISION` |
-| P0-OBS-R006, R033–R036, R053 y R066 | Sangrado vaginal y ruta hemorrágica | Guía IMSS correspondiente, identificación exacta pendiente | `BLOQUEO_CLINICO` |
+| P0-OBS-R006, R033–R036, R053 y R066 | Sangrado vaginal y ruta de valoración de sangrado obstétrico | IMSS-162-09, *Diagnóstico y tratamiento del choque hemorrágico en obstetricia*, actualización 2017 | `VALIDADO_CON_LIMITES` |
 | P0-OBS-R012–R014, R040–R044, R054–R062 y R065–R068 | Control prenatal, alarmas generales y valoración materno-fetal | IMSS-028; IMSS-436, cuando corresponda | `FUENTE_DECLARADA_PENDIENTE_REVISION` |
 
 La referencia histórica IMSS-020 permanece declarada en `OBS-HTA-001`, pero
 no se usa para sustituir ni inferir el identificador IMSS-058 indicado en la
 decisión P0. La discrepancia bibliográfica requiere revisión humana.
+
+### Decisión humana P0-HEMORRAGIA
+
+- **Institución:** Instituto Mexicano del Seguro Social.
+- **Clave:** IMSS-162-09.
+- **Título:** *Diagnóstico y tratamiento del choque hemorrágico en obstetricia*.
+- **Actualización:** 2017.
+- **Evidencia relevante:** la clasificación del choque considera la cantidad
+  estimada de sangrado y las manifestaciones clínicas. Esta guía no se usa para
+  afirmar que cualquier sangrado aislado equivale a hemorragia o choque.
+- `sangrado vaginal` permanece como dato observado, sin inferir por sí solo
+  gravedad, etiología, choque ni compromiso fetal.
+- Los términos textuales generales `hemorragia` y `sangrado obstétrico` no se
+  transforman automáticamente en localización vaginal.
+- La ruta se denomina `Sangrado obstétrico / requiere valoración` y no expresa
+  un diagnóstico ni una clasificación de gravedad clínica.
+- Las etiquetas NANDA generadas por una ruta no se reutilizan como evidencia
+  para sugerirse a sí mismas. El motor conserva el flujo NANDA–NOC–NIC a partir
+  de datos observados o derivados con trazabilidad explícita.
+
+Las reglas de etiología, tratamiento farmacológico y clasificación de choque
+no se implementan hasta tener datos y contratos suficientes.
 
 ## Decisión humana P0 de saneamiento obstétrico
 
@@ -79,6 +101,8 @@ decisión P0. La discrepancia bibliográfica requiere revisión humana.
   expresan posible riesgo infeccioso, sin confirmar infección.
 - Sangrado no fabrica dolor; náusea/vómito no fabrica deshidratación; disuria
   no fabrica infección urinaria.
+- Sangrado vaginal aislado activa valoración y caracterización, no una
+  clasificación de hemorragia o choque, y no fabrica compromiso fetal.
 - Contracciones pretérmino exigen menos de 37 semanas tanto para booleanos
   como para texto.
 - Movimientos fetales disminuidos/ausentes requieren 20 semanas o más en este

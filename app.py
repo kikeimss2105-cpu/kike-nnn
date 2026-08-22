@@ -63,7 +63,7 @@ Antes de continuar, lee y acepta los siguientes términos:
 - **No emite diagnósticos de enfermería definitivos** ni diagnósticos médicos de ningún tipo.
 - **No sustituye** el juicio clínico del profesional o estudiante de enfermería.
 - **No reemplaza** protocolos institucionales vigentes (GPC-IMSS, ACOG, NOM, guías locales).
-- Las rutas clínicas generadas (hipertensiva, RPM, hemorrágica, etc.) son **guías educativas orientativas**, no órdenes clínicas.
+- Las rutas clínicas generadas (hipertensiva, RPM, valoración de sangrado obstétrico, etc.) son **guías educativas orientativas**, no órdenes clínicas.
 - El profesional o estudiante es **el único responsable** de validar toda salida con fuentes autorizadas y con valoración directa del paciente.
 - Esta herramienta **no está certificada por COFEPRIS** ni por ningún organismo regulatorio sanitario nacional o internacional.
 - **No almacena ni transmite datos de pacientes.** Todo el procesamiento ocurre localmente en esta sesión.
@@ -134,7 +134,7 @@ patrones_gordon = _cargar_patrones_gordon_cacheado()
 
 with st.sidebar:
     st.success("KIKE-NNN v1.0.0-rc1 | Candidato técnico educativo")
-    st.info("Rutas: hipertensiva, RPM/infección, dolor obstétrico, hemorrágica y bienestar fetal.")
+    st.info("Rutas: hipertensiva, RPM/infección, dolor obstétrico, valoración de sangrado y bienestar fetal.")
     st.markdown("---")
     st.caption("⚕️ Herramienta educativa — no uso clínico directo")
 
@@ -800,9 +800,9 @@ with st.sidebar:
     st.markdown(f"**Perfil:** {tipo_paciente}")
     st.markdown(f"**Hallazgos activos:** {n_hallazgos}")
     if n_alertas_prev > 0:
-        st.error(f"⚠️ Posibles alertas detectadas")
+        st.warning("Situaciones obstétricas que requieren valoración")
     else:
-        st.success("Sin alertas críticas previas")
+        st.success("Sin situaciones obstétricas adicionales que requieran valoración")
     st.markdown("---")
     st.caption("v1.0.0-rc1 | Leininger · Xalapa, Ver.")
 
@@ -968,11 +968,12 @@ with tab_resultados:
         st.subheader("⚠️ Alertas clínicas educativas")
         if alertas_clinicas:
             alertas_altas = [a for a in alertas_clinicas if a["Nivel"] == "Alta"]
-            alertas_medias = [a for a in alertas_clinicas if a["Nivel"] != "Alta"]
+            otras_alertas = [a for a in alertas_clinicas if a["Nivel"] != "Alta"]
             for alerta in alertas_altas:
                 st.error(f"**[ALTA] {alerta['Área']}** — {alerta['Alerta']}  \n_{alerta['Acción sugerida']}_")
-            for alerta in alertas_medias:
-                st.warning(f"**[MEDIA] {alerta['Área']}** — {alerta['Alerta']}  \n_{alerta['Acción sugerida']}_")
+            for alerta in otras_alertas:
+                nivel_visible = str(alerta["Nivel"]).upper()
+                st.warning(f"**[{nivel_visible}] {alerta['Área']}** — {alerta['Alerta']}  \n_{alerta['Acción sugerida']}_")
         else:
             st.success("Sin alertas educativas críticas detectadas con los datos ingresados.")
 

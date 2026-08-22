@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from engine.interpretaciones import interpretar_pa_obstetrica
@@ -104,17 +106,112 @@ def test_sintomas_hipertensivos_aislados_son_alarma_sin_preeclampsia(sintoma):
     assert "preeclampsia" not in resumen.lower()
 
 
-def test_sangrado_sin_dolor_no_fabrica_dolor():
+def test_sangrado_booleano_conserva_dato_sangrado_vaginal():
     datos, resumen = evaluar_rutas_obstetricas(
         "Obstétrico", semanas_gestacion=30, sangrado=True
     )
     hallazgos = extraer_hallazgos_obstetricos(
         "Obstétrico", semanas_gestacion=30, sangrado_vaginal=True
     )
-    assert "Hemorrágica" in resumen
+    assert "Sangrado obstétrico / requiere valoración" in resumen
     datos_activadores = resumen.split("Acción educativa:", 1)[0]
     assert "dolor" not in datos_activadores.lower()
     assert not any("dolor" in dato for dato in datos + hallazgos)
+    assert hallazgos == [
+        "embarazo", "paciente obstétrica", "vigilancia obstétrica",
+        "embarazo mayor de 20 semanas", "sangrado vaginal",
+    ]
+
+
+def test_sangrado_aislado_no_genera_dolor():
+    datos, resumen = evaluar_rutas_obstetricas(
+        "Obstétrico", semanas_gestacion=30, sangrado=True
+    )
+    datos_activadores = resumen.split("Acción educativa:", 1)[0]
+    assert "dolor" not in datos_activadores.lower()
+    assert not any("dolor" in dato for dato in datos)
+
+
+def test_sangrado_aislado_no_genera_compromiso_fetal():
+    datos, resumen = evaluar_rutas_obstetricas(
+        "Obstétrico", semanas_gestacion=30, sangrado=True
+    )
+    texto = " ".join(datos + [resumen]).lower()
+    assert "compromiso fetal" not in texto
+    assert "riesgo de alteración de la díada materno-fetal" not in datos
+
+
+def test_sangrado_aislado_no_genera_choque():
+    datos, resumen = evaluar_rutas_obstetricas(
+        "Obstétrico", semanas_gestacion=30, sangrado=True
+    )
+    assert "choque" not in " ".join(datos + [resumen]).lower()
+
+
+def test_sangrado_aislado_no_se_denomina_hemorragia_confirmada():
+    _, resumen = evaluar_rutas_obstetricas(
+        "Obstétrico", semanas_gestacion=30, sangrado=True
+    )
+    assert "hemorragia confirmada" not in resumen.lower()
+    assert "Hemorrágica" not in resumen
+    assert "Sangrado obstétrico / requiere valoración" in resumen
+
+
+@pytest.mark.parametrize("termino", ["hemorragia", "sangrado obstétrico"])
+def test_termino_general_de_sangrado_no_infiere_localizacion_vaginal(termino):
+    datos, resumen = evaluar_rutas_obstetricas(
+        "Obstétrico", semanas_gestacion=30, hallazgos_detectados=[termino]
+    )
+    assert termino in datos
+    assert "sangrado vaginal" not in datos
+    assert termino in resumen
+
+
+def test_texto_sangrado_vaginal_se_reconoce_correctamente():
+    datos, resumen = evaluar_rutas_obstetricas(
+        "Obstétrico", semanas_gestacion=30,
+        hallazgos_detectados=["sangrado vaginal"],
+    )
+    assert datos == ["sangrado vaginal"]
+    assert "sangrado vaginal" in resumen
+
+
+def test_ruta_no_reutiliza_etiquetas_nanda_como_datos_de_entrada():
+    datos, _ = evaluar_rutas_obstetricas(
+        "Obstétrico", semanas_gestacion=30, sangrado=True
+    )
+    assert "riesgo de sangrado" not in datos
+    assert "riesgo de alteración de la díada materno-fetal" not in datos
+
+
+def test_ausencia_de_datos_fetales_se_conserva_como_ausencia():
+    datos, resumen = evaluar_rutas_obstetricas(
+        "Obstétrico", semanas_gestacion=30, sangrado=True,
+        movimientos_fetales="No aplica / no valorado",
+    )
+    texto = " ".join(datos + [resumen]).lower()
+    assert "movimientos fetales" not in texto
+    assert "díada materno-fetal" not in texto
+    assert "bienestar fetal" not in texto
+
+
+def test_salida_visual_de_sangrado_no_usa_triaje_o_gravedad_no_validada():
+    app = (Path(__file__).parents[1] / "app.py").read_text(encoding="utf-8")
+    assert "Situaciones obstétricas que requieren valoración" in app
+    assert 'st.error(f"⚠️ Posibles alertas detectadas")' not in app
+    assert "Rutas: hipertensiva, RPM/infección, dolor obstétrico, hemorrágica" not in app
+
+
+def test_alerta_de_sangrado_sugiere_valoracion_sin_confirmar_diagnosticos():
+    [alerta] = _alertas(semanas_gestacion=30, sangrado_vaginal=True)
+    assert alerta["Nivel"] == "Requiere valoración"
+    assert alerta["Alerta"] == (
+        "Sangrado vaginal durante el embarazo: requiere valoración obstétrica y caracterización."
+    )
+    texto = " ".join(alerta.values()).lower()
+    assert "hemorragia confirmada" not in texto
+    assert "choque" not in texto
+    assert "compromiso fetal" not in texto
 
 
 def test_liquido_fetido_sin_temperatura_no_fabrica_fiebre_ni_infeccion_confirmada():

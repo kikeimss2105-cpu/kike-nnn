@@ -74,7 +74,7 @@ def extraer_hallazgos_obstetricos(
     if convulsiones:
         hallazgos.extend(["convulsiones", "alteración neurológica", "prioridad alta"])
     if sangrado_vaginal:
-        hallazgos.extend(["sangrado vaginal", "riesgo de sangrado", "prioridad alta"])
+        hallazgos.append("sangrado vaginal")
     if salida_liquido:
         hallazgos.extend([
             "salida de líquido transvaginal",
@@ -175,10 +175,10 @@ def generar_alertas_obstetricas(
 
     if sangrado_vaginal:
         alertas.append({
-            "Nivel": "Alta",
+            "Nivel": "Requiere valoración",
             "Área": "Obstétrico / sangrado",
-            "Alerta": "Sangrado vaginal durante el embarazo.",
-            "Acción sugerida": "Valorar cantidad, dolor, signos vitales, edad gestacional y activar ruta obstétrica según protocolo."
+            "Alerta": "Sangrado vaginal durante el embarazo: requiere valoración obstétrica y caracterización.",
+            "Acción sugerida": "Valorar cantidad y características del sangrado, dolor observado, signos vitales y edad gestacional según protocolo."
         })
 
     if salida_liquido:
@@ -260,7 +260,7 @@ def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=None, pa_sistolic
     Clasifica señales obstétricas por ruta educativa.
     v18.1:
     - Separa dolor obstétrico de hemorragia.
-    - No activa ruta hemorrágica sin sangrado.
+    - No clasifica un sangrado aislado como hemorragia o choque.
     - No inyecta sangrado/shock si el usuario no marcó sangrado.
     """
     if tipo_paciente != "Obstétrico":
@@ -373,13 +373,20 @@ def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=None, pa_sistolic
         datos.extend(["vigilancia obstétrica", "requiere valoración obstétrica"])
 
     # =========================
-    # RUTA HEMORRÁGICA
-    # Solo si hay sangrado real o explícitamente detectado.
+    # RUTA DE VALORACIÓN DE SANGRADO OBSTÉTRICO
+    # Conserva la localización solo cuando fue observada explícitamente.
     # =========================
     datos_hemorragicos = []
-    sangrado_real = bool(sangrado) or tiene_exacto("sangrado vaginal", "hemorragia", "sangrado obstétrico")
+    sangrado_vaginal_observado = bool(sangrado) or tiene_exacto("sangrado vaginal")
+    sangrado_general_observado = tiene_exacto("hemorragia", "sangrado obstétrico")
+    sangrado_real = sangrado_vaginal_observado or sangrado_general_observado
     if sangrado_real:
-        datos_hemorragicos.append("sangrado vaginal")
+        if sangrado_vaginal_observado:
+            datos_hemorragicos.append("sangrado vaginal")
+        if tiene_exacto("hemorragia"):
+            datos_hemorragicos.append("hemorragia")
+        if tiene_exacto("sangrado obstétrico"):
+            datos_hemorragicos.append("sangrado obstétrico")
         if dolor_abdominal or tiene("dolor abdominal", "dolor uterino"):
             datos_hemorragicos.append("dolor abdominal")
         contracciones_pretermino = _menor_que(semanas_gestacion, 37) and (
@@ -390,17 +397,12 @@ def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=None, pa_sistolic
 
         datos_hemorragicos = list(dict.fromkeys(datos_hemorragicos))
         rutas.append({
-            "Ruta": "Hemorrágica",
-            "Nivel": "Alta",
+            "Ruta": "Sangrado obstétrico / requiere valoración",
+            "Nivel": "Requiere valoración",
             "Datos activadores": ", ".join(datos_hemorragicos),
-            "Acción educativa": "Valorar cantidad de sangrado, dolor, signos vitales, tono uterino y activar valoración obstétrica."
+            "Acción educativa": "Caracterizar el sangrado y valorar dolor observado, signos vitales, edad gestacional y tono uterino según protocolo."
         })
-        datos.extend([
-            "sangrado vaginal",
-            "riesgo de sangrado",
-            "signos de alarma obstétrica",
-            "riesgo de alteración de la díada materno-fetal"
-        ])
+        datos.extend(datos_hemorragicos)
 
     # =========================
     # RUTA DOLOR OBSTÉTRICO / SIGNO DE ALARMA
