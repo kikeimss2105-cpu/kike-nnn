@@ -71,10 +71,15 @@ def nivel_confianza(puntaje):
     return "Sin coincidencia"
 
 
-def buscar_diagnosticos(texto_clinico, nanda_df, enlaces_df):
+def buscar_diagnosticos(
+    texto_clinico,
+    nanda_df,
+    enlaces_df,
+    *,
+    dato_fetal_referido=False,
+):
     resultados = []
     texto_normalizado = normalizar_texto(texto_clinico)
-    datos_fetales_observados = "dato fetal observado" in texto_normalizado
     dolor_observado = any(
         termino in texto_normalizado
         for termino in (
@@ -87,11 +92,31 @@ def buscar_diagnosticos(texto_clinico, nanda_df, enlaces_df):
 
     for _, fila in nanda_df.iterrows():
         nombre_nanda = normalizar_texto(fila.get("nanda", ""))
-        if "materno-fetal" in nombre_nanda and not datos_fetales_observados:
+        if "materno-fetal" in nombre_nanda and not dato_fetal_referido:
             continue
         if nombre_nanda == "dolor de parto" and not dolor_observado:
             continue
         puntaje, coincidencias = calcular_puntaje(texto_clinico, fila)
+
+        # El perfil obstétrico y su vigilancia son contexto derivado, no tres
+        # evidencias clínicas independientes para reforzar la sugerencia 00209.
+        if nombre_nanda == "riesgo de alteracion de la diada materno-fetal":
+            contexto_derivado = {
+                "[ASO] embarazo mayor de 20 semanas",
+                "[ASO] paciente obstétrica",
+                "[ASO] vigilancia obstétrica",
+            }
+            coincidencias = [
+                coincidencia
+                for coincidencia in coincidencias
+                if coincidencia not in contexto_derivado
+            ]
+            puntaje = sum(
+                4 if coincidencia.startswith("[DEF]")
+                else 2 if coincidencia.startswith("[REL]")
+                else 1
+                for coincidencia in coincidencias
+            )
 
         if puntaje > 0:
             enlaces = enlaces_df[enlaces_df["nanda"] == fila["nanda"]]

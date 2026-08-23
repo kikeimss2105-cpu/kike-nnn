@@ -84,7 +84,7 @@ def agregar_tabla_diccionario(document, titulo, datos):
 
 
 def agregar_tabla_resumen_diagnosticos(document, df_resultados):
-    document.add_heading("3. Diagnósticos sugeridos", level=2)
+    document.add_heading("3. Sugerencias diagnósticas educativas", level=2)
     document.add_paragraph(
         "Tabla compacta para identificar rápidamente diagnóstico, puntaje, confianza, jerarquía y prioridad."
     )
@@ -191,7 +191,7 @@ def generar_excel(df_resultados, datos_paciente, justificaciones=None):
             df_resultados[columnas_resumen].to_excel(
                 writer,
                 index=False,
-                sheet_name="Resumen diagnóstico"
+                sheet_name="Resumen sugerencias"
             )
 
         df_resultados.to_excel(
@@ -289,8 +289,8 @@ def generar_word(df_resultados, datos_paciente, justificaciones=None):
         return output
 
     resumen = {
-        "Número de diagnósticos sugeridos": len(df_resultados),
-        "Diagnóstico con mayor puntaje": df_resultados.iloc[0].get("NANDA", ""),
+        "Número de sugerencias diagnósticas": len(df_resultados),
+        "Sugerencia con mayor puntaje": df_resultados.iloc[0].get("NANDA", ""),
         "Puntaje más alto": df_resultados.iloc[0].get("Puntaje", ""),
         "Confianza educativa máxima": df_resultados.iloc[0].get("Confianza", ""),
         "Jerarquía del diagnóstico principal": df_resultados.iloc[0].get("Jerarquía", ""),

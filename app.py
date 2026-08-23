@@ -555,7 +555,7 @@ with tab_braden:
             temperatura = st.number_input("Temperatura (°C)", min_value=34.0, max_value=42.0, value=None, step=0.1, placeholder="No valorada")
             movimientos_fetales = st.selectbox(
                 "Movimientos fetales referidos",
-                ["No aplica / no valorado", "Presentes", "Disminuidos", "Ausentes"]
+                ["No valorado", "Presentes", "Disminuidos", "Ausentes"]
             )
 
         interpretacion_pa_obstetrica = interpretar_pa_obstetrica(pas, pad, semanas_gestacion)
@@ -582,11 +582,10 @@ with tab_braden:
             liquido_verdoso = st.checkbox("Líquido verdoso")
             dolor_abdominal_intenso = st.checkbox("Dolor abdominal intenso")
             contracciones_antes_termino = st.checkbox("Contracciones uterinas")
-            disminucion_mov_fetales = st.checkbox("Disminución o ausencia de movimientos fetales")
             nausea_vomito_persistente = st.checkbox("Náusea/vómito persistente")
             disuria_obstetrica = st.checkbox("Dolor o molestia al orinar")
 
-        st.caption("Datos de alarma: sangrado, salida de líquido, cefalea intensa, fosfenos, acúfenos, edema, dolor abdominal intenso, fiebre y disminución de movimientos fetales requieren valoración según protocolo.")
+        st.caption("Datos que requieren valoración según contexto y protocolo: sangrado, salida de líquido, cefalea intensa, fosfenos, acúfenos, edema, dolor abdominal intenso, fiebre y movimientos fetales referidos como disminuidos o ausentes.")
 
     else:
         semanas_gestacion = None
@@ -594,7 +593,7 @@ with tab_braden:
         pas = None
         pad = None
         temperatura = None
-        movimientos_fetales = "No aplica / no valorado"
+        movimientos_fetales = "No valorado"
         interpretacion_pa_obstetrica = "No aplica: perfil no obstétrico"
         cefalea_intensa = False
         fosfenos = False
@@ -608,7 +607,6 @@ with tab_braden:
         liquido_verdoso = False
         dolor_abdominal_intenso = False
         contracciones_antes_termino = False
-        disminucion_mov_fetales = False
         nausea_vomito_persistente = False
         disuria_obstetrica = False
 
@@ -733,7 +731,6 @@ hallazgos_obstetricos = extraer_hallazgos_obstetricos(
     liquido_verdoso=liquido_verdoso,
     dolor_abdominal_intenso=dolor_abdominal_intenso,
     contracciones_antes_termino=contracciones_antes_termino,
-    disminucion_mov_fetales=disminucion_mov_fetales,
     movimientos_fetales=movimientos_fetales,
     nausea_vomito_persistente=nausea_vomito_persistente,
     disuria_obstetrica=disuria_obstetrica,
@@ -838,7 +835,7 @@ with tab_resultados:
 
     # Preview obstétrico — siempre visible si aplica
     if tipo_paciente == "Obstétrico" and resumen_rutas_obstetricas not in ["Sin ruta obstétrica crítica activada con los datos ingresados.", "No aplica"]:
-        st.subheader("🔴 Ruta obstétrica activa")
+        st.subheader("Ruta educativa obstétrica activa")
         st.warning(resumen_rutas_obstetricas)
 
     # Instrucciones si no se ha generado nada aún
@@ -932,7 +929,7 @@ with tab_resultados:
                 salida_liquido=salida_liquido, liquido_fetido=liquido_fetido,
                 liquido_verdoso=liquido_verdoso, dolor_abdominal_intenso=dolor_abdominal_intenso,
                 contracciones_antes_termino=contracciones_antes_termino,
-                disminucion_mov_fetales=disminucion_mov_fetales,
+                movimientos_fetales=movimientos_fetales,
                 nausea_vomito_persistente=nausea_vomito_persistente,
                 disuria_obstetrica=disuria_obstetrica,
             )
@@ -940,7 +937,12 @@ with tab_resultados:
             datos_paciente["Alertas clínicas educativas"] = alertas_a_texto(alertas_clinicas)
 
             # Buscar diagnósticos
-            df_resultados = buscar_diagnosticos(texto_clinico, nanda_df, enlaces_df)
+            df_resultados = buscar_diagnosticos(
+                texto_clinico,
+                nanda_df,
+                enlaces_df,
+                dato_fetal_referido=movimientos_fetales in {"Disminuidos", "Ausentes"},
+            )
             df_resultados = enriquecer_plan(df_resultados, metas_df, noc_indicadores_df, nic_actividades_df, fundamentos_df)
 
         # Persistimos todo en session_state: sin esto, cualquier interacción
@@ -1027,17 +1029,17 @@ with tab_resultados:
 
             col_dxa, col_dxb = st.columns(2)
             with col_dxa:
-                st.subheader("🔵 Diagnósticos principales")
+                st.subheader("Sugerencias diagnósticas principales")
                 if dx_principales.empty:
-                    st.info("Sin diagnósticos principales con puntaje alto.")
+                    st.info("Sin sugerencias diagnósticas principales con puntaje alto.")
                 else:
                     cols_tabla = ["Código", "NANDA", "Puntaje", "Confianza", "Prioridad"]
                     st.dataframe(dx_principales[cols_tabla], use_container_width=True, hide_index=True)
 
             with col_dxb:
-                st.subheader("⚪ Diagnósticos complementarios")
+                st.subheader("Sugerencias diagnósticas complementarias")
                 if dx_complementarios.empty:
-                    st.info("Sin diagnósticos complementarios.")
+                    st.info("Sin sugerencias diagnósticas complementarias.")
                 else:
                     cols_tabla = ["Código", "NANDA", "Puntaje", "Confianza", "Prioridad"]
                     st.dataframe(dx_complementarios[cols_tabla], use_container_width=True, hide_index=True)

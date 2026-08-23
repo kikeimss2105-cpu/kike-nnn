@@ -20,7 +20,7 @@ def generar_resumen_clinico(df_resultados, puntaje_braden, riesgo_braden, eva_do
         lineas.append("Prioridad principal: " + ", ".join(principales) + ".")
 
     if complementarios:
-        lineas.append("Diagnósticos complementarios a vigilar: " + ", ".join(complementarios) + ".")
+        lineas.append("Sugerencias diagnósticas complementarias a valorar: " + ", ".join(complementarios) + ".")
 
     if riesgo_braden != "No valorado":
         lineas.append(f"Escala de Braden: {puntaje_braden} puntos, interpretación: {riesgo_braden}.")

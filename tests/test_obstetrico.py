@@ -6,6 +6,7 @@ import pytest
 
 from engine.interpretaciones import interpretar_pa_obstetrica
 from engine.obstetrico import (
+    clasificar_movimientos_fetales,
     clasificar_datos_rpm,
     evaluar_rutas_obstetricas,
     extraer_hallazgos_obstetricos,
@@ -32,7 +33,7 @@ def _alertas(**cambios):
         "liquido_verdoso": False,
         "dolor_abdominal_intenso": False,
         "contracciones_antes_termino": False,
-        "disminucion_mov_fetales": False,
+        "movimientos_fetales": "No valorado",
         "nausea_vomito_persistente": False,
         "disuria_obstetrica": False,
     }
@@ -188,7 +189,7 @@ def test_ruta_no_reutiliza_etiquetas_nanda_como_datos_de_entrada():
 def test_ausencia_de_datos_fetales_se_conserva_como_ausencia():
     datos, resumen = evaluar_rutas_obstetricas(
         "Obstétrico", semanas_gestacion=30, sangrado=True,
-        movimientos_fetales="No aplica / no valorado",
+        movimientos_fetales="No valorado",
     )
     texto = " ".join(datos + [resumen]).lower()
     assert "movimientos fetales" not in texto
@@ -277,7 +278,7 @@ def test_liquido_verdoso_no_fabrica_compromiso_fetal():
     alertas = _alertas(liquido_verdoso=True)
     datos, resumen = evaluar_rutas_obstetricas(
         "Obstétrico", liquido_verdoso=True,
-        movimientos_fetales="No aplica / no valorado",
+        movimientos_fetales="No valorado",
     )
     texto = " ".join(sum(categorias.values(), []) + datos + [str(alertas), resumen]).lower()
     assert "líquido verdoso" in texto
@@ -450,7 +451,7 @@ def test_contracciones_y_sangrado_permanecen_en_rutas_separadas_sin_dolor():
     [
         ({"salida_liquido": True}, "Salida de líquido / sospecha de ruptura de membranas"),
         ({"temperatura": 38.0}, "Signos que requieren valoración de infección"),
-        ({"movimientos_fetales": "Disminuidos"}, "Bienestar fetal"),
+        ({"movimientos_fetales": "Disminuidos"}, "Movimientos fetales referidos"),
     ],
 )
 def test_interacciones_con_contracciones_no_fabrican_dolor_ni_diagnostico(cambios, ruta_adicional):
@@ -466,15 +467,186 @@ def test_interacciones_con_contracciones_no_fabrican_dolor_ni_diagnostico(cambio
     assert "parto pretérmino" not in resumen.lower()
 
 
-@pytest.mark.parametrize(("semanas", "activa"), [(19, False), (20, True)])
+@pytest.mark.parametrize(("semanas", "activa"), [(27, False), (28, True)])
 def test_movimientos_fetales_aplican_criterio_gestacional_sin_diagnosticar(semanas, activa):
     datos, resumen = evaluar_rutas_obstetricas(
         "Obstétrico", semanas_gestacion=semanas, movimientos_fetales="Ausentes"
     )
-    assert ("Bienestar fetal" in resumen) is activa
+    assert ("Movimientos fetales referidos" in resumen) is activa
     texto = " ".join(datos).lower()
     assert "diagnóstico fetal" not in texto
     assert "sufrimiento fetal" not in texto
+
+
+@pytest.mark.parametrize("estado", ["No valorado", "Presentes"])
+def test_movimientos_no_valorados_o_presentes_no_activan_ruta(estado):
+    _, resumen = evaluar_rutas_obstetricas(
+        "Obstétrico", semanas_gestacion=28, movimientos_fetales=estado,
+    )
+    assert resumen.startswith("Sin ruta")
+
+
+@pytest.mark.parametrize(
+    ("estado", "termino"),
+    [
+        ("Disminuidos", "movimientos fetales disminuidos"),
+        ("Ausentes", "movimientos fetales ausentes"),
+    ],
+)
+def test_movimientos_disminuidos_y_ausentes_conservan_estado(estado, termino):
+    categorias = clasificar_movimientos_fetales(estado, semanas_gestacion=28)
+    hallazgos = extraer_hallazgos_obstetricos(
+        "Obstétrico", semanas_gestacion=28, movimientos_fetales=estado,
+    )
+    datos, resumen = evaluar_rutas_obstetricas(
+        "Obstétrico", semanas_gestacion=28, movimientos_fetales=estado,
+    )
+
+    assert termino in categorias["DATOS_REFERIDOS"]
+    assert termino in hallazgos
+    assert termino in resumen.lower()
+    assert termino in datos
+    opuesto = "ausentes" if estado == "Disminuidos" else "disminuidos"
+    assert f"movimientos fetales {opuesto}" not in hallazgos
+
+
+def test_dato_referido_se_conserva_antes_de_semana_28_sin_alarma():
+    hallazgos = extraer_hallazgos_obstetricos(
+        "Obstétrico", semanas_gestacion=27, movimientos_fetales="Disminuidos",
+    )
+    assert "movimientos fetales disminuidos" in hallazgos
+    assert "dato fetal referido" in hallazgos
+    assert "requiere valoración de movimientos fetales referidos" not in hallazgos
+
+
+@pytest.mark.parametrize(("semanas", "activa"), [(27, False), (28, True)])
+def test_alerta_de_movimientos_referidos_inicia_en_semana_28(semanas, activa):
+    alertas = _alertas(
+        semanas_gestacion=semanas, movimientos_fetales="Disminuidos",
+    )
+    assert bool(alertas) is activa
+
+
+@pytest.mark.parametrize(("semanas", "activa"), [(42, True), (43, False)])
+def test_alerta_de_movimientos_valida_limite_superior(semanas, activa):
+    alertas = _alertas(
+        semanas_gestacion=semanas, movimientos_fetales="Ausentes",
+    )
+    assert bool(alertas) is activa
+
+
+def test_alerta_preserva_estado_y_declara_prioridad_pedagogica():
+    [disminuidos] = _alertas(
+        semanas_gestacion=28, movimientos_fetales="Disminuidos",
+    )
+    [ausentes] = _alertas(
+        semanas_gestacion=28, movimientos_fetales="Ausentes",
+    )
+    assert disminuidos["Alerta"] == (
+        "Disminución de movimientos fetales referida: requiere valoración."
+    )
+    assert ausentes["Alerta"] == (
+        "Ausencia de movimientos fetales referida: requiere valoración."
+    )
+    assert disminuidos["Nivel"] == "Prioridad pedagógica alta"
+    assert ausentes["Nivel"] == "Prioridad pedagógica alta"
+
+
+def test_reporte_materno_genera_dato_referido_y_no_observado():
+    hallazgos = extraer_hallazgos_obstetricos(
+        "Obstétrico", semanas_gestacion=28, movimientos_fetales="Disminuidos",
+    )
+    assert "dato fetal referido" in hallazgos
+    assert "dato fetal observado" not in hallazgos
+
+
+def test_movimientos_aislados_no_generan_estado_fetal_ni_diagnostico():
+    hallazgos = extraer_hallazgos_obstetricos(
+        "Obstétrico", semanas_gestacion=28, movimientos_fetales="Ausentes",
+    )
+    texto = " ".join(hallazgos).lower()
+    for termino in (
+        "compromiso fetal", "sufrimiento fetal", "hipoxia fetal",
+        "estado fetal alterado", "frecuencia cardiaca fetal",
+    ):
+        assert termino not in texto
+
+
+def test_texto_libre_no_desbloquea_nanda_materno_fetal():
+    pytest.importorskip("pandas")
+    from engine.carga import cargar_catalogos
+    from engine.motor import buscar_diagnosticos
+
+    catalogos = cargar_catalogos("data")
+    resultados = buscar_diagnosticos(
+        "dato fetal referido líquido verdoso signos de alarma obstétrica",
+        catalogos.nanda,
+        catalogos.enlaces,
+    )
+    assert resultados.empty or not resultados["NANDA"].str.contains(
+        "materno-fetal", case=False,
+    ).any()
+
+
+def test_contexto_obstetrico_derivado_no_refuerza_00209():
+    pytest.importorskip("pandas")
+    from engine.carga import cargar_catalogos
+    from engine.motor import buscar_diagnosticos
+
+    catalogos = cargar_catalogos("data")
+    texto = (
+        "dato fetal referido movimientos fetales disminuidos embarazo mayor de 20 semanas "
+        "paciente obstétrica vigilancia obstétrica"
+    )
+    resultados = buscar_diagnosticos(
+        texto, catalogos.nanda, catalogos.enlaces, dato_fetal_referido=True,
+    )
+    assert resultados.empty or "Riesgo de alteración de la díada materno-fetal" not in resultados["NANDA"].tolist()
+
+
+def test_00209_permanece_sugerencia_con_evidencia_adicional():
+    pytest.importorskip("pandas")
+    from engine.carga import cargar_catalogos
+    from engine.motor import buscar_diagnosticos
+    from engine.plan import enriquecer_plan
+
+    catalogos = cargar_catalogos("data")
+    resultados = buscar_diagnosticos(
+        "movimientos fetales disminuidos líquido verdoso",
+        catalogos.nanda,
+        catalogos.enlaces,
+        dato_fetal_referido=True,
+    )
+    resultados = enriquecer_plan(
+        resultados,
+        catalogos.metas,
+        catalogos.noc_indicadores,
+        catalogos.nic_actividades,
+        catalogos.fundamentos,
+    )
+    fila = resultados[
+        resultados["NANDA"] == "Riesgo de alteración de la díada materno-fetal"
+    ].iloc[0]
+    assert fila["Nota"] == "Requiere validación clínica"
+    assert fila["Jerarquía"] == "Complementario"
+    assert "Estado fetal: anteparto" in fila["NOC sugerido"]
+    assert "Monitorización fetal" in fila["NIC sugerido"]
+
+
+def test_ui_usa_selector_unico_y_lenguaje_de_sugerencias():
+    app = (Path(__file__).parents[1] / "app.py").read_text(encoding="utf-8")
+    assert app.count('st.selectbox(\n                "Movimientos fetales referidos"') == 1
+    assert "Disminución o ausencia de movimientos fetales\")" not in app
+    assert "Sugerencias diagnósticas principales" in app
+    assert "🔵 Diagnósticos principales" not in app
+
+
+def test_exportacion_declara_sugerencias_educativas():
+    exportadores = (
+        Path(__file__).parents[1] / "utils" / "exportadores.py"
+    ).read_text(encoding="utf-8")
+    assert "Sugerencias diagnósticas educativas" in exportadores
+    assert "3. Diagnósticos sugeridos" not in exportadores
 
 
 def test_tipo_invalido_es_fallo_tecnico_y_no_resultado_clinico_negativo():

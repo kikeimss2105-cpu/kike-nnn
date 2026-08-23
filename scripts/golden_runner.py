@@ -125,9 +125,9 @@ casos_obst = [
      '[Requiere valoración] Salida de líquido con signos que requieren valoración de infección: salida de líquido transvaginal, líquido fétido, fiebre 38.5°C. '
      'Acción educativa: Valorar posible ruptura de membranas, temperatura, características del líquido, dolor, bienestar fetal y posible riesgo infeccioso según protocolo.'),
     (dict(tipo_paciente="Obstétrico", semanas_gestacion=32, movimientos_fetales="Ausentes"),
-     ['disminución de movimientos fetales', 'vigilancia fetal', 'requiere valoración de bienestar fetal', 'signos de alarma obstétrica'],
-     '[Alta] Bienestar fetal: movimientos fetales ausentes. '
-     'Acción educativa: Registrar movimientos fetales referidos y solicitar valoración de bienestar fetal según protocolo.'),
+     ['movimientos fetales ausentes', 'vigilancia fetal', 'requiere valoración de movimientos fetales referidos', 'signos de alarma obstétrica'],
+     '[Prioridad pedagógica alta] Movimientos fetales referidos / requiere valoración: movimientos fetales ausentes. '
+     'Acción educativa: Confirmar duración referida y solicitar valoración materno-fetal según protocolo, sin inferir un estado fetal medido.'),
 ]
 for i, (kwargs, datos_esp, resumen_esp) in enumerate(casos_obst):
     datos, resumen = evaluar_rutas_obstetricas(**kwargs)

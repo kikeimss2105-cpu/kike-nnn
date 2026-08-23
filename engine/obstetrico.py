@@ -27,6 +27,40 @@ def _gestacion_pretermino(semanas_gestacion):
     return _semanas_gestacion_validas(semanas_gestacion) and semanas_gestacion < 37
 
 
+def clasificar_movimientos_fetales(
+    movimientos_fetales="No valorado",
+    semanas_gestacion=None,
+):
+    """Separa el dato materno referido de la inferencia pedagógica.
+
+    La referencia de movimientos no representa una observación instrumental ni
+    permite inferir frecuencia cardiaca, hipoxia o estado fetal.
+    """
+    categorias = {
+        "DATOS_REFERIDOS": [],
+        "INFERENCIAS_PEDAGOGICAS": [],
+        "SUGERENCIAS_NANDA": [],
+    }
+    estados = {
+        "Presentes": "movimientos fetales presentes",
+        "Disminuidos": "movimientos fetales disminuidos",
+        "Ausentes": "movimientos fetales ausentes",
+    }
+    termino = estados.get(movimientos_fetales)
+    if termino:
+        categorias["DATOS_REFERIDOS"].append(termino)
+
+    if movimientos_fetales in {"Disminuidos", "Ausentes"}:
+        categorias["DATOS_REFERIDOS"].append("dato fetal referido")
+        if _semanas_gestacion_validas(semanas_gestacion) and _alcanza(semanas_gestacion, 28):
+            categorias["INFERENCIAS_PEDAGOGICAS"].extend([
+                "requiere valoración de movimientos fetales referidos",
+                "prioridad pedagógica alta",
+            ])
+
+    return categorias
+
+
 def _pa_texto(pas, pad):
     sistolica = "no valorada" if pas is None else str(pas)
     diastolica = "no valorada" if pad is None else str(pad)
@@ -90,8 +124,7 @@ def extraer_hallazgos_obstetricos(
     liquido_verdoso=False,
     dolor_abdominal_intenso=False,
     contracciones_antes_termino=False,
-    disminucion_mov_fetales=False,
-    movimientos_fetales="No aplica / no valorado",
+    movimientos_fetales="No valorado",
     nausea_vomito_persistente=False,
     disuria_obstetrica=False,
 ):
@@ -140,14 +173,12 @@ def extraer_hallazgos_obstetricos(
         hallazgos.append("contracciones uterinas")
         if _gestacion_pretermino(semanas_gestacion):
             hallazgos.append("contracciones en gestación pretérmino")
-    movimientos_alterados = disminucion_mov_fetales or movimientos_fetales in {"Disminuidos", "Ausentes"}
-    if contexto_gestacional and movimientos_alterados:
-        hallazgos.extend([
-            "dato fetal observado",
-            "disminución de movimientos fetales",
-            "requiere valoración de bienestar fetal",
-            "prioridad alta",
-        ])
+    categorias_movimientos = clasificar_movimientos_fetales(
+        movimientos_fetales=movimientos_fetales,
+        semanas_gestacion=semanas_gestacion,
+    )
+    hallazgos.extend(categorias_movimientos["DATOS_REFERIDOS"])
+    hallazgos.extend(categorias_movimientos["INFERENCIAS_PEDAGOGICAS"])
     if nausea_vomito_persistente:
         hallazgos.extend(["náusea", "vómito persistente", "requiere valoración de hidratación"])
     if disuria_obstetrica:
@@ -174,7 +205,7 @@ def generar_alertas_obstetricas(
     liquido_verdoso,
     dolor_abdominal_intenso,
     contracciones_antes_termino,
-    disminucion_mov_fetales,
+    movimientos_fetales,
     nausea_vomito_persistente,
     disuria_obstetrica,
 ):
@@ -283,12 +314,22 @@ def generar_alertas_obstetricas(
             "Acción sugerida": "Valorar frecuencia, duración, regularidad, dolor, salida de líquido, sangrado y cambios cervicales conforme a protocolo."
         })
 
-    if disminucion_mov_fetales and _alcanza(semanas_gestacion, 20):
+    movimientos_alterados = movimientos_fetales in {"Disminuidos", "Ausentes"}
+    if (
+        movimientos_alterados
+        and _semanas_gestacion_validas(semanas_gestacion)
+        and _alcanza(semanas_gestacion, 28)
+    ):
+        mensaje = (
+            "Disminución de movimientos fetales referida: requiere valoración."
+            if movimientos_fetales == "Disminuidos"
+            else "Ausencia de movimientos fetales referida: requiere valoración."
+        )
         alertas.append({
-            "Nivel": "Alta",
-            "Área": "Obstétrico / bienestar fetal",
-            "Alerta": "Disminución o ausencia de movimientos fetales referida.",
-            "Acción sugerida": "Valorar bienestar fetal y notificar según protocolo institucional."
+            "Nivel": "Prioridad pedagógica alta",
+            "Área": "Obstétrico / movimientos fetales referidos",
+            "Alerta": mensaje,
+            "Acción sugerida": "Confirmar duración referida, valorar conforme a protocolo institucional y notificar según corresponda."
         })
 
     if nausea_vomito_persistente:
@@ -315,7 +356,7 @@ def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=None, pa_sistolic
                               epigastralgia=False, edema=False, convulsiones=False,
                               sangrado=False, salida_liquido=False, liquido_fetido=False,
                               liquido_verdoso=False, dolor_abdominal=False,
-                              contracciones=False, movimientos_fetales="No aplica / no valorado",
+                              contracciones=False, movimientos_fetales="No valorado",
                               hallazgos_detectados=None):
     """
     Clasifica señales obstétricas por ruta educativa.
@@ -503,27 +544,27 @@ def evaluar_rutas_obstetricas(tipo_paciente, semanas_gestacion=None, pa_sistolic
         datos.extend(["contracciones uterinas", "contracciones en gestación pretérmino"])
 
     # =========================
-    # RUTA BIENESTAR FETAL
+    # RUTA DE MOVIMIENTOS FETALES REFERIDOS / REQUIERE VALORACIÓN
     # =========================
     datos_fetales = []
-    edad_para_movimientos = _semanas_gestacion_validas(semanas_gestacion) and _alcanza(semanas_gestacion, 20)
+    edad_para_movimientos = _semanas_gestacion_validas(semanas_gestacion) and _alcanza(semanas_gestacion, 28)
     if edad_para_movimientos and movimientos_fetales in ["Disminuidos", "Ausentes"]:
         datos_fetales.append(f"movimientos fetales {movimientos_fetales.lower()}")
     if edad_para_movimientos and tiene("disminución de movimientos fetales", "disminucion de movimientos fetales", "movimientos fetales disminuidos", "movimientos fetales ausentes"):
-        datos_fetales.append("movimientos fetales alterados")
+        datos_fetales.append("alteración referida de movimientos fetales")
 
     if datos_fetales:
         datos_fetales = list(dict.fromkeys(datos_fetales))
         rutas.append({
-            "Ruta": "Bienestar fetal",
-            "Nivel": "Alta",
+            "Ruta": "Movimientos fetales referidos / requiere valoración",
+            "Nivel": "Prioridad pedagógica alta",
             "Datos activadores": ", ".join(datos_fetales),
-            "Acción educativa": "Registrar movimientos fetales referidos y solicitar valoración de bienestar fetal según protocolo."
+            "Acción educativa": "Confirmar duración referida y solicitar valoración materno-fetal según protocolo, sin inferir un estado fetal medido."
         })
         datos.extend([
-            "disminución de movimientos fetales",
+            *datos_fetales,
             "vigilancia fetal",
-            "requiere valoración de bienestar fetal",
+            "requiere valoración de movimientos fetales referidos",
             "signos de alarma obstétrica"
         ])
 

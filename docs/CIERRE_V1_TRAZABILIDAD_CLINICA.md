@@ -63,7 +63,7 @@ analogía.
 | P0-OBS-R007–R009 y R026–R032 | Salida de líquido, sospecha de ruptura de membranas y signos que requieren valoración de infección | IMSS-321-11 | `FUENTE_COTEJADA_CON_LIMITES` |
 | P0-OBS-R011, R035, R038 y R059 | Contracciones uterinas en contexto gestacional pretérmino que requieren valoración, sin diagnosticar parto pretérmino | IMSS-063-08 | `FUENTE_COTEJADA_CON_LIMITES` |
 | P0-OBS-R006, R033–R036, R053 y R066 | Sangrado vaginal y ruta de valoración de sangrado obstétrico | IMSS-162-09, *Diagnóstico y tratamiento del choque hemorrágico en obstetricia*, actualización 2017 | `VALIDADO_CON_LIMITES` |
-| P0-OBS-R012–R014, R040–R044, R054–R062 y R065–R068 | Control prenatal, alarmas generales y valoración materno-fetal | IMSS-028; IMSS-436, cuando corresponda | `FUENTE_DECLARADA_PENDIENTE_REVISION` |
+| P0-OBS-R012–R014, R040–R044, R054–R062 y R065–R068 | Control prenatal y movimientos fetales referidos; otros contenidos materno-fetales permanecen pendientes | IMSS-028-08 para la regla cotejada de movimientos; IMSS-436 solo como referencia contextual de emergencias obstétricas | `FUENTE_COTEJADA_CON_LIMITES` para movimientos; lo demás permanece pendiente |
 
 La referencia histórica IMSS-020 permanece declarada en `OBS-HTA-001`, pero
 no se usa para sustituir ni inferir el identificador IMSS-058 indicado en la
@@ -128,6 +128,38 @@ decisión P0. La discrepancia bibliográfica requiere revisión humana.
   prioridades fijas, diagnóstico automático ni decisiones obstétricas
   definitivas.
 
+### Decisión humana P0-Bienestar fetal/movimientos referidos
+
+- **Institución:** Instituto Mexicano del Seguro Social.
+- **Clave:** IMSS-028-08.
+- **Título:** *Control prenatal con atención centrada en la paciente*.
+- **Estado:** fuente principal cotejada con límites.
+- La guía incluye los movimientos fetales como parte del control prenatal y
+  considera dato de alarma la disminución o ausencia de movimientos fetales por
+  más de dos horas después de la semana 28.
+- La aplicación conserva una sola entrada materna referida con cuatro estados:
+  `No valorado`, `Presentes`, `Disminuidos` y `Ausentes`. Disminución y ausencia
+  permanecen diferenciadas durante la normalización.
+- El dato se registra antes de la semana 28, pero la ruta y alerta atribuidas a
+  IMSS-028-08 exigen semanas válidas `>=28`. La captura mantiene `1–42` como
+  rango técnico válido y rechaza valores fuera de ese intervalo.
+- `dato fetal referido` identifica la procedencia materna. No representa
+  observación instrumental ni permite inferir frecuencia cardiaca fetal,
+  perfil biofísico, ultrasonido, hipoxia, sufrimiento, compromiso o estado fetal.
+- El nivel `Prioridad pedagógica alta` organiza la enseñanza y no constituye
+  triage clínico validado.
+- El seguro NANDA recibe la procedencia mediante un argumento estructurado; una
+  frase arbitraria en texto libre no desbloquea diagnósticos materno-fetales.
+- El perfil derivado `paciente obstétrica`, `vigilancia obstétrica` y `embarazo
+  mayor de 20 semanas` no suma tres evidencias independientes para NANDA 00209.
+- NANDA 00209 y sus NOC/NIC permanecen como sugerencias que requieren validación
+  clínica; no expresan diagnóstico fetal ni un estado fetal medido.
+- IMSS-436 no se usa como fuente individual de movimientos fetales. Permanece
+  únicamente como referencia contextual de emergencias obstétricas mientras no
+  exista una regla específica cotejada.
+- Permanecen documentados, sin implementar un detector casero, los riesgos de
+  substrings y negaciones en texto libre.
+
 ### Decisión humana P0-HEMORRAGIA
 
 - **Institución:** Instituto Mexicano del Seguro Social.
@@ -164,7 +196,8 @@ no se implementan hasta tener datos y contratos suficientes.
 - Los datos RPM observados, inferencias pedagógicas, sospechas y sugerencias
   NANDA se conservan en categorías distintas. Las salidas de la ruta no se
   consolidan como evidencia de entrada al motor NANDA.
-- No se sugieren etiquetas materno-fetales sin un dato fetal observado.
+- No se sugieren etiquetas materno-fetales sin procedencia fetal referida
+  estructurada; el reporte materno no se presenta como observación instrumental.
 - Sangrado no fabrica dolor; náusea/vómito no fabrica deshidratación; disuria
   no fabrica infección urinaria.
 - Sangrado vaginal aislado activa valoración y caracterización, no una
@@ -172,8 +205,9 @@ no se implementan hasta tener datos y contratos suficientes.
 - La clasificación pedagógica `contracciones en gestación pretérmino` exige
   semanas válidas `<37` tanto para booleanos como para texto. No equivale a
   amenaza, trabajo de parto ni parto pretérmino.
-- Movimientos fetales disminuidos/ausentes requieren 20 semanas o más en este
-  tamizaje y activan valoración, no diagnóstico fetal.
+- Movimientos fetales disminuidos/ausentes se registran como datos maternos
+  referidos y, desde la semana 28 válida, activan una prioridad pedagógica de
+  valoración, no un diagnóstico fetal.
 - PA, semanas y temperatura ausentes se conservan como `None`/no valorado.
 - `app.py` dejó de reinterpretar rutas mediante búsquedas en el resumen; la
   normalización obstétrica procede de `engine/obstetrico.py`.
