@@ -7,6 +7,8 @@ from engine.carga import cargar_catalogos
 from engine.criterios import construir_criterios_nanda
 from engine.motor import buscar_diagnosticos
 from engine.plan import enriquecer_plan
+from engine.evidencia import FuenteEvidencia, evidencias_desde_hallazgos
+from engine.parser_negaciones import conceptos_catalogo, parsear_texto_libre
 from engine.interpretaciones import (
     interpretar_braden, interpretar_eva, interpretar_glasgow,
     interpretar_riesgo_caidas, interpretar_spo2, interpretar_fr_adulto,
@@ -857,6 +859,67 @@ with tab_resultados:
             texto_estructurado = " ".join(hallazgos_seleccionados)
             texto_clinico = f"{tipo_paciente} {dx_medico} {signos_vitales} {factores_riesgo} {sintomas} {texto_estructurado}"
 
+            vocabulario_clinico = conceptos_catalogo(nanda_df)
+            evidencias_clinicas = []
+            estados_parsing = []
+            for origen_texto, valor_texto in (
+                ("diagnostico_medico", dx_medico),
+                ("signos_vitales_texto", signos_vitales),
+                ("factores_riesgo_texto", factores_riesgo),
+                ("sintomas_texto_libre", sintomas),
+            ):
+                resultado_parsing = parsear_texto_libre(
+                    valor_texto, vocabulario_clinico, origen=origen_texto
+                )
+                evidencias_clinicas.extend(resultado_parsing.evidencias)
+                estados_parsing.append(resultado_parsing.estado)
+
+            evidencias_clinicas.extend(evidencias_desde_hallazgos(
+                [h for h, v in checkboxes_valoracion.items() if v],
+                fuente=FuenteEvidencia.OBSERVADO,
+                origen="valoracion_rapida",
+            ))
+            evidencias_clinicas.extend(evidencias_desde_hallazgos(
+                hallazgos_gordon,
+                fuente=FuenteEvidencia.REFERIDO_ESTRUCTURADO,
+                origen="gordon",
+            ))
+            evidencias_clinicas.extend(evidencias_desde_hallazgos(
+                hallazgos_eva,
+                fuente=FuenteEvidencia.MEDIDO,
+                origen="eva",
+                derivada_de="eva_dolor",
+            ))
+            evidencias_clinicas.extend(evidencias_desde_hallazgos(
+                hallazgos_respiratorios,
+                fuente=FuenteEvidencia.MEDIDO,
+                origen="respiratorio",
+                derivada_de="spo2_fr",
+            ))
+            for origen_escala, hallazgos_escala in (
+                ("braden", hallazgos_braden),
+                ("glasgow", hallazgos_glasgow),
+                ("caidas", hallazgos_caidas),
+            ):
+                evidencias_clinicas.extend(evidencias_desde_hallazgos(
+                    hallazgos_escala,
+                    fuente=FuenteEvidencia.INFERIDO,
+                    origen=origen_escala,
+                    derivada_de=f"escala_{origen_escala}",
+                ))
+            evidencias_clinicas.extend(evidencias_desde_hallazgos(
+                hallazgos_obstetricos_para_nanda,
+                fuente=FuenteEvidencia.GENERADO_SISTEMA,
+                origen="valoracion_obstetrica",
+                derivada_de="datos_obstetricos_estructurados",
+            ))
+            evidencias_clinicas.extend(evidencias_desde_hallazgos(
+                hallazgos_perfil,
+                fuente=FuenteEvidencia.INFERIDO,
+                origen="perfil_paciente",
+                derivada_de="tipo_paciente",
+            ))
+
             datos_paciente = {
                 "Tipo de paciente": tipo_paciente,
                 "Edad": edad,
@@ -942,6 +1005,12 @@ with tab_resultados:
                 nanda_df,
                 enlaces_df,
                 dato_fetal_referido=movimientos_fetales in {"Disminuidos", "Ausentes"},
+                evidencias=evidencias_clinicas,
+            )
+            df_resultados.attrs["estado_parsing"] = (
+                "PARSING_NO_CONFIABLE"
+                if "PARSING_NO_CONFIABLE" in estados_parsing
+                else "PARSING_CONFIABLE"
             )
             df_resultados = enriquecer_plan(df_resultados, metas_df, noc_indicadores_df, nic_actividades_df, fundamentos_df)
 
@@ -1007,6 +1076,14 @@ with tab_resultados:
         # =========================
         # DIAGNÓSTICOS
         # =========================
+        advertencia_evidencia = df_resultados.attrs.get("advertencia_evidencia", "")
+        if advertencia_evidencia:
+            st.warning(advertencia_evidencia)
+        if df_resultados.attrs.get("estado_parsing") == "PARSING_NO_CONFIABLE":
+            st.warning(
+                "Una mención del texto libre no pudo clasificarse con confiabilidad y "
+                "se excluyó del puntaje automático. Los datos estructurados se conservaron."
+            )
         if df_resultados.empty:
             st.warning("No se encontraron coincidencias suficientes. Agrega más hallazgos clínicos o texto libre para ampliar la búsqueda.")
         else:
