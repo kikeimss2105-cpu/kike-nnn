@@ -8,9 +8,12 @@ modalidades deliberadamente aplazadas.
 import re
 
 from engine.evidencia import (
+    ElegibilidadEvidencia,
+    EstadoValidacion,
     ConfiabilidadEvidencia,
     EvidenciaClinica,
     FuenteEvidencia,
+    NaturalezaEvidencia,
     PolaridadEvidencia,
     ResultadoParsing,
 )
@@ -148,6 +151,9 @@ def parsear_texto_libre(texto, conceptos, *, origen="texto_libre") -> ResultadoP
                         origen=origen,
                         inicio=inicio_global,
                         fin=fin_global,
+                        naturaleza=NaturalezaEvidencia.DATO_PRIMARIO_REFERIDO,
+                        estado_validacion=EstadoValidacion.VALIDADO,
+                        elegibilidad=ElegibilidadEvidencia.PUNTUABLE,
                     ))
         return ResultadoParsing(tuple(evidencias))
     except Exception:

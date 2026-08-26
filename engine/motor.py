@@ -7,9 +7,17 @@ mediante tests/test_golden.py antes de sustituir el código en app.py.
 """
 
 import pandas as pd
-from engine.evidencia import PolaridadEvidencia
+from engine.evidencia import ElegibilidadEvidencia, PolaridadEvidencia
 from engine.parser_negaciones import conceptos_catalogo, parsear_texto_libre
 from engine.texto import normalizar_texto, separar_lista
+
+
+SCORING_KIKE_NNN_V1 = {
+    "DEF": 4,
+    "REL": 2,
+    "ASO": 1,
+    "UMBRAL_VISIBILIDAD": 8,
+}
 
 
 def calcular_puntaje(texto_clinico, fila):
@@ -18,7 +26,7 @@ def calcular_puntaje(texto_clinico, fila):
     - Exige al menos una característica definitoria para diagnósticos reales.
     - Pesa más lo definitorio que lo relacionado/asociado.
     - Etiqueta coincidencias para explicar el razonamiento.
-    - Permite diagnósticos de riesgo cuando su etiqueta clave aparece en datos de riesgo.
+    - Prohíbe que una etiqueta NANDA constituya evidencia de sí misma.
     """
     caracteristicas = separar_lista(fila["caracteristicas"])
     relacionados = separar_lista(fila["relacionados"])
@@ -44,7 +52,7 @@ def _valor_enum(valor):
     return getattr(valor, "value", valor)
 
 
-def _detalle_coincidencia(termino, categoria, evidencia):
+def _detalle_coincidencia(termino, categoria, evidencia, *, elegibilidad=None):
     return {
         "termino": termino,
         "categoria": categoria,
@@ -52,6 +60,10 @@ def _detalle_coincidencia(termino, categoria, evidencia):
         "polaridad": _valor_enum(evidencia.polaridad),
         "origen": evidencia.origen,
         "derivada_de": evidencia.derivada_de,
+        "id_dato_primario": evidencia.id_dato_primario,
+        "naturaleza": _valor_enum(evidencia.naturaleza),
+        "estado_validacion": _valor_enum(evidencia.estado_validacion),
+        "elegibilidad": elegibilidad or _valor_enum(evidencia.elegibilidad),
         "inicio": evidencia.inicio,
         "fin": evidencia.fin,
     }
@@ -59,17 +71,30 @@ def _detalle_coincidencia(termino, categoria, evidencia):
 
 def calcular_puntaje_evidencias(evidencias, fila):
     """Calcula el score heredado usando solo evidencia positiva confiable."""
+    nombre_nanda = normalizar_texto(fila.get("nanda", ""))
+    autorreferencias = [
+        evidencia for evidencia in evidencias
+        if normalizar_texto(evidencia.concepto) == nombre_nanda
+    ]
     por_concepto = {}
     for evidencia in evidencias:
-        if evidencia.puntuable:
+        if evidencia.puntuable and normalizar_texto(evidencia.concepto) != nombre_nanda:
             por_concepto.setdefault(normalizar_texto(evidencia.concepto), []).append(evidencia)
 
     grupos = (
-        ("DEF", separar_lista(fila["caracteristicas"]), 4),
-        ("REL", separar_lista(fila["relacionados"]), 2),
-        ("ASO", separar_lista(fila["asociados"]), 1),
+        ("DEF", separar_lista(fila["caracteristicas"]), SCORING_KIKE_NNN_V1["DEF"]),
+        ("REL", separar_lista(fila["relacionados"]), SCORING_KIKE_NNN_V1["REL"]),
+        ("ASO", separar_lista(fila["asociados"]), SCORING_KIKE_NNN_V1["ASO"]),
     )
-    detalles = []
+    detalles = [
+        _detalle_coincidencia(
+            str(fila.get("nanda", "")).lower(),
+            "AUTORREFERENCIA",
+            evidencia,
+            elegibilidad=ElegibilidadEvidencia.PROHIBIDA_AUTORREFERENCIA.value,
+        )
+        for evidencia in autorreferencias
+    ]
     terminos_por_categoria = {"DEF": [], "REL": [], "ASO": []}
     for categoria, terminos, _peso in grupos:
         for termino in terminos:
@@ -81,24 +106,12 @@ def calcular_puntaje_evidencias(evidencias, fila):
                     for evidencia in productores
                 )
 
-    nombre_nanda = normalizar_texto(fila.get("nanda", ""))
-    if not terminos_por_categoria["DEF"] and "riesgo" in nombre_nanda:
-        productores = por_concepto.get(nombre_nanda, [])
-        if productores:
-            termino = str(fila.get("nanda", "")).lower()
-            terminos_por_categoria["DEF"].append(termino)
-            detalles.extend(
-                _detalle_coincidencia(termino, "DEF", evidencia)
-                for evidencia in productores
-            )
-
     if not terminos_por_categoria["DEF"]:
-        return 0, [], []
+        return 0, [], detalles
 
-    puntaje = (
-        len(terminos_por_categoria["DEF"]) * 4
-        + len(terminos_por_categoria["REL"]) * 2
-        + len(terminos_por_categoria["ASO"]) * 1
+    puntaje = sum(
+        len(terminos_por_categoria[categoria]) * peso
+        for categoria, _terminos, peso in grupos
     )
     coincidencias = [
         f"[{categoria}] {termino}"
@@ -163,6 +176,7 @@ def buscar_diagnosticos(
         )
     )
 
+    autorreferencias_prohibidas = []
     for _, fila in nanda_df.iterrows():
         nombre_nanda = normalizar_texto(fila.get("nanda", ""))
         if "materno-fetal" in nombre_nanda and not dato_fetal_referido:
@@ -170,6 +184,11 @@ def buscar_diagnosticos(
         if nombre_nanda == "dolor de parto" and not dolor_observado:
             continue
         puntaje, coincidencias, detalles = calcular_puntaje_evidencias(evidencias, fila)
+        autorreferencias_prohibidas.extend(
+            {**detalle, "nanda_evaluada": fila.get("nanda", "")}
+            for detalle in detalles
+            if detalle["elegibilidad"] == ElegibilidadEvidencia.PROHIBIDA_AUTORREFERENCIA.value
+        )
 
         # El perfil obstétrico y su vigilancia son contexto derivado, no tres
         # evidencias clínicas independientes para reforzar la sugerencia 00209.
@@ -233,6 +252,7 @@ def buscar_diagnosticos(
             if contradicciones else ""
         ),
         "estado_parsing": estado_parsing,
+        "autorreferencias_prohibidas": autorreferencias_prohibidas,
     }
     if not resultados:
         vacio = pd.DataFrame()
@@ -241,7 +261,7 @@ def buscar_diagnosticos(
 
     df = pd.DataFrame(resultados)
     df = df.sort_values(by="Puntaje", ascending=False)
-    df = df[df["Puntaje"] >= 8]
+    df = df[df["Puntaje"] >= SCORING_KIKE_NNN_V1["UMBRAL_VISIBILIDAD"]]
     df = df.head(10)
     df.attrs.update(atributos)
 

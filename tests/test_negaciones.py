@@ -2,12 +2,14 @@ import pytest
 
 from engine.carga import cargar_catalogos
 from engine.evidencia import (
+    ElegibilidadEvidencia,
     FuenteEvidencia,
     PolaridadEvidencia,
     evidencia_estructurada,
+    evidencias_desde_eva,
     evidencias_desde_hallazgos,
 )
-from engine.motor import buscar_diagnosticos, calcular_puntaje
+from engine.motor import buscar_diagnosticos, calcular_puntaje, calcular_puntaje_evidencias
 from engine.parser_negaciones import conceptos_catalogo, parsear_texto_libre
 
 
@@ -148,19 +150,22 @@ def test_construcciones_no_soportadas_son_no_confiables(texto):
 
 
 def test_eva_positiva_y_dolor_negado_conservan_contradiccion():
-    evidencias = evidencias_desde_hallazgos(
-        ["dolor", "dolor agudo", "molestia", "dolor intenso", "punzada"],
-        fuente=FuenteEvidencia.MEDIDO,
-        origen="eva",
-        derivada_de="eva_dolor",
-    ) + list(parsear("niega dolor"))
+    evidencias_eva = evidencias_desde_eva(8, valorado=True)
+    evidencia_dolor = next(e for e in evidencias_eva if e.concepto == "dolor")
+    evidencia_negada = next(e for e in parsear("niega dolor") if e.concepto == "dolor")
+
+    assert evidencia_dolor.puntuable
+    assert evidencia_negada.polaridad == PolaridadEvidencia.NEGADA
+    assert not evidencia_negada.puntuable
+    assert "dolor agudo" not in {e.concepto for e in evidencias_eva}
+
+    evidencias = evidencias_eva + [evidencia_negada]
     resultado = buscar_diagnosticos("", CAT.nanda, CAT.enlaces, evidencias=evidencias)
     assert "dolor" in resultado.attrs["contradicciones"]
     assert resultado.attrs["advertencia_evidencia"] == (
         "Existen datos contradictorios que requieren revisión."
     )
-    assert resultado.iloc[0]["Código"] == "00132"
-    assert resultado.iloc[0]["Puntaje"] == 8
+    assert resultado.empty
 
 
 @pytest.mark.parametrize("hallazgos,texto,concepto_negado", [
@@ -192,12 +197,27 @@ def test_coincidencia_conserva_trazabilidad_estructurada():
         origen="eva",
         derivada_de="eva_dolor",
     )
-    resultado = buscar_diagnosticos("", CAT.nanda, CAT.enlaces, evidencias=evidencias)
-    detalles = resultado.iloc[0]["Coincidencias estructuradas"]
-    assert {d["categoria"] for d in detalles} == {"DEF"}
+    fila_dolor = CAT.nanda[CAT.nanda["codigo"] == "00132"].iloc[0]
+    puntaje, coincidencias, detalles = calcular_puntaje_evidencias(evidencias, fila_dolor)
+    detalle_dolor = next(d for d in detalles if d["termino"] == "dolor")
+    detalle_autorreferencia = next(
+        d for d in detalles
+        if d["elegibilidad"] == ElegibilidadEvidencia.PROHIBIDA_AUTORREFERENCIA.value
+    )
+
+    assert coincidencias == ["[DEF] dolor"]
+    assert puntaje == 4
+    assert puntaje < 8
+    assert detalle_dolor["categoria"] == "DEF"
+    assert detalle_autorreferencia["termino"] == "dolor agudo"
+    assert detalle_autorreferencia["categoria"] == "AUTORREFERENCIA"
     assert {d["fuente"] for d in detalles} == {"MEDIDO"}
     assert {d["origen"] for d in detalles} == {"eva"}
     assert {d["derivada_de"] for d in detalles} == {"eva_dolor"}
+
+    resultado = buscar_diagnosticos("", CAT.nanda, CAT.enlaces, evidencias=evidencias)
+    assert resultado.empty
+    assert resultado.attrs["autorreferencias_prohibidas"]
 
 
 def test_fallo_parser_es_no_confiable_y_no_genera_evidencia():

@@ -7,12 +7,20 @@ from engine.carga import cargar_catalogos
 from engine.criterios import construir_criterios_nanda
 from engine.motor import buscar_diagnosticos
 from engine.plan import enriquecer_plan
-from engine.evidencia import FuenteEvidencia, evidencias_desde_hallazgos
+from engine.evidencia import (
+    ElegibilidadEvidencia,
+    EstadoValidacion,
+    FuenteEvidencia,
+    NaturalezaEvidencia,
+    evidencia_estructurada,
+    evidencias_desde_eva,
+    evidencias_desde_hallazgos,
+)
 from engine.parser_negaciones import conceptos_catalogo, parsear_texto_libre
 from engine.interpretaciones import (
     interpretar_braden, interpretar_eva, interpretar_glasgow,
-    interpretar_riesgo_caidas, interpretar_spo2, interpretar_fr_adulto,
-    interpretar_fr_por_tipo, recomendaciones_por_tipo, interpretar_pa_obstetrica,
+    interpretar_riesgo_caidas, interpretar_spo2,
+    recomendaciones_por_tipo, interpretar_pa_obstetrica,
 )
 from engine.obstetrico import (
     clasificar_datos_rpm,
@@ -23,6 +31,7 @@ from engine.obstetrico import (
 from engine.resumen import generar_resumen_clinico, generar_alertas_clinicas, alertas_a_texto
 from engine.gordon import cargar_patrones_gordon, hallazgos_desde_respuestas
 from engine.texto import consolidar_hallazgos
+from engine.respiratorio import evaluar_fr, evidencias_desde_resultado_fr, evidencias_desde_spo2
 from engine.neonatal import (
     calcular_apgar,
     calcular_capurro_a,
@@ -408,12 +417,30 @@ with tab_braden:
         oxigeno_suplementario = st.selectbox("Oxígeno suplementario", ["No", "Sí", "No especificado"],
                                               disabled=not respiratorio_valorado)
 
-    interpretacion_spo2 = interpretar_spo2(spo2)
-    interpretacion_fr = interpretar_fr_por_tipo(fr, tipo_paciente)
-
-    st.info(
-        f"Respiratorio: SpO₂ {spo2}% | {interpretacion_spo2} | "
-        f"FR {fr} rpm | {interpretacion_fr}"
+    resultado_fr = evaluar_fr(
+        fr if respiratorio_valorado else None,
+        valorado=respiratorio_valorado,
+        perfil=tipo_paciente,
+        edad=edad,
+        contexto_obstetrico={"aplica": tipo_paciente == "Obstétrico"},
+        origen="respiratorio.fr",
+        id_dato_primario="fr_capturada",
+    )
+    if respiratorio_valorado:
+        interpretacion_spo2 = interpretar_spo2(spo2)
+        interpretacion_fr = resultado_fr.interpretacion
+        st.info(
+            f"Respiratorio: SpO₂ {spo2}% | {interpretacion_spo2} | "
+            f"FR {resultado_fr.valor_rpm} rpm | {interpretacion_fr}"
+        )
+    else:
+        interpretacion_spo2 = "No valorado"
+        interpretacion_fr = "No valorado"
+        st.info("Módulo respiratorio no valorado.")
+    evidencias_spo2_clinicas = evidencias_desde_spo2(
+        spo2 if respiratorio_valorado else None,
+        valorado=respiratorio_valorado,
+        id_dato_primario="spo2_capturada",
     )
     st.caption("Interpretación educativa general. Ajustar a edad, patología, altitud, protocolo institucional y contexto clínico.")
 
@@ -472,6 +499,11 @@ with tab_braden:
                           disabled=not eva_valorado)
     interpretacion_eva = interpretar_eva(eva_dolor)
     st.info(f"EVA: {eva_dolor}/10 | {interpretacion_eva}")
+    evidencias_eva_clinicas = evidencias_desde_eva(
+        eva_dolor if eva_valorado else None,
+        valorado=eva_valorado,
+        id_dato_primario="eva_dolor",
+    )
 
     st.subheader("Escala de Glasgow — Estado neurológico")
     glasgow_valorado = st.toggle("✅ Incluir Glasgow en la valoración", value=False,
@@ -657,12 +689,10 @@ if braden_valorado:
     if braden_friccion <= 2:
         hallazgos_braden += ["fricción", "cizallamiento"]
 
-hallazgos_eva = []
-if eva_valorado:
-    if eva_dolor >= 4:
-        hallazgos_eva += ["dolor", "dolor agudo", "molestia"]
-    if eva_dolor >= 7:
-        hallazgos_eva += ["dolor intenso", "prioridad alta", "punzada"]
+hallazgos_eva = [
+    evidencia.concepto for evidencia in evidencias_eva_clinicas
+    if evidencia.concepto != "escala visual analógica del dolor"
+]
 
 hallazgos_glasgow = []
 if glasgow_valorado:
@@ -676,20 +706,13 @@ if glasgow_valorado:
 
 hallazgos_respiratorios = []
 if respiratorio_valorado:
-    if spo2 <= 95:
-        hallazgos_respiratorios.append("saturación baja")
-    if spo2 <= 93:
-        hallazgos_respiratorios += ["hipoxia", "deterioro del intercambio gaseoso"]
-    if spo2 <= 90:
-        hallazgos_respiratorios += ["cianosis", "oxigenación comprometida", "prioridad alta"]
-    if fr > 20:
-        hallazgos_respiratorios += ["taquipnea", "patrón respiratorio ineficaz"]
-    if fr > 30:
-        hallazgos_respiratorios += ["uso de músculos accesorios", "fatiga de músculos respiratorios"]
-    if fr < 12:
-        hallazgos_respiratorios += ["bradipnea", "alteración respiratoria"]
-    if oxigeno_suplementario == "Sí" and spo2 <= 95:
-        hallazgos_respiratorios += ["requiere oxígeno suplementario", "monitorización respiratoria"]
+    hallazgos_respiratorios.extend(
+        evidencia.concepto for evidencia in evidencias_spo2_clinicas
+        if evidencia.derivada_de is not None
+    )
+    hallazgos_respiratorios.extend(resultado_fr.terminos_derivados)
+    if oxigeno_suplementario == "Sí":
+        hallazgos_respiratorios.append("requiere oxígeno suplementario")
 
 hallazgos_caidas = []
 if puntaje_caidas >= 1:
@@ -809,7 +832,8 @@ with st.sidebar:
     st.markdown("---")
     n_hallazgos = len([h for h, v in checkboxes_valoracion.items() if v])
     n_alertas_prev = 0
-    if spo2 <= 90 or fr > 30 or glasgow_total <= 8 or puntaje_braden <= 12 or puntaje_caidas >= 6:
+    alerta_fr_alta = resultado_fr.alerta is not None and resultado_fr.alerta.nivel == "Alta"
+    if spo2 <= 90 or alerta_fr_alta or glasgow_total <= 8 or puntaje_braden <= 12 or puntaje_caidas >= 6:
         n_alertas_prev += 1
     pa_obstetrica_elevada = (
         (pas is not None and pas >= 140)
@@ -878,24 +902,31 @@ with tab_resultados:
                 [h for h, v in checkboxes_valoracion.items() if v],
                 fuente=FuenteEvidencia.OBSERVADO,
                 origen="valoracion_rapida",
+                naturaleza=NaturalezaEvidencia.DATO_PRIMARIO_OBSERVADO,
+                estado_validacion=EstadoValidacion.VALIDADO,
+                elegibilidad=ElegibilidadEvidencia.PUNTUABLE,
             ))
             evidencias_clinicas.extend(evidencias_desde_hallazgos(
                 hallazgos_gordon,
                 fuente=FuenteEvidencia.REFERIDO_ESTRUCTURADO,
                 origen="gordon",
+                naturaleza=NaturalezaEvidencia.DATO_PRIMARIO_REFERIDO,
+                estado_validacion=EstadoValidacion.VALIDADO,
+                elegibilidad=ElegibilidadEvidencia.PUNTUABLE,
             ))
-            evidencias_clinicas.extend(evidencias_desde_hallazgos(
-                hallazgos_eva,
-                fuente=FuenteEvidencia.MEDIDO,
-                origen="eva",
-                derivada_de="eva_dolor",
-            ))
-            evidencias_clinicas.extend(evidencias_desde_hallazgos(
-                hallazgos_respiratorios,
-                fuente=FuenteEvidencia.MEDIDO,
-                origen="respiratorio",
-                derivada_de="spo2_fr",
-            ))
+            evidencias_clinicas.extend(evidencias_eva_clinicas)
+            evidencias_clinicas.extend(evidencias_desde_resultado_fr(resultado_fr))
+            evidencias_clinicas.extend(evidencias_spo2_clinicas)
+            if respiratorio_valorado and oxigeno_suplementario == "Sí":
+                evidencias_clinicas.append(evidencia_estructurada(
+                    "requiere oxígeno suplementario",
+                    fuente=FuenteEvidencia.REFERIDO_ESTRUCTURADO,
+                    origen="respiratorio.oxigeno_suplementario",
+                    id_dato_primario="oxigeno_suplementario",
+                    naturaleza=NaturalezaEvidencia.DATO_PRIMARIO_REFERIDO,
+                    estado_validacion=EstadoValidacion.VALIDADO,
+                    elegibilidad=ElegibilidadEvidencia.PUNTUABLE,
+                ))
             for origen_escala, hallazgos_escala in (
                 ("braden", hallazgos_braden),
                 ("glasgow", hallazgos_glasgow),
@@ -918,6 +949,9 @@ with tab_resultados:
                 fuente=FuenteEvidencia.INFERIDO,
                 origen="perfil_paciente",
                 derivada_de="tipo_paciente",
+                naturaleza=NaturalezaEvidencia.CONTEXTO,
+                estado_validacion=EstadoValidacion.VALIDADO,
+                elegibilidad=ElegibilidadEvidencia.NO_PUNTUABLE,
             ))
 
             datos_paciente = {
@@ -927,10 +961,13 @@ with tab_resultados:
                 "Diagnóstico médico": dx_medico,
                 "Signos vitales": signos_vitales,
                 "Factores de riesgo": factores_riesgo,
-                "SpO2 (%)": spo2 if respiratorio_valorado else "No valorado",
+                "SpO2 (%)": spo2 if respiratorio_valorado else None,
                 "Interpretación SpO2": interpretacion_spo2 if respiratorio_valorado else "No valorado",
-                "Frecuencia respiratoria (rpm)": fr if respiratorio_valorado else "No valorado",
-                "Interpretación FR": interpretacion_fr if respiratorio_valorado else "No valorado",
+                "Frecuencia respiratoria (rpm)": resultado_fr.valor_rpm,
+                "Interpretación FR": resultado_fr.interpretacion,
+                "Regla FR": resultado_fr.regla_id,
+                "Estado validación FR": resultado_fr.estado_validacion.value,
+                "ID dato primario FR": resultado_fr.id_dato_primario,
                 "Oxígeno suplementario": oxigeno_suplementario if respiratorio_valorado else "No valorado",
                 "Puntaje Braden": puntaje_braden if braden_valorado else "No valorado",
                 "Interpretación Braden": riesgo_braden if braden_valorado else "No valorado",
@@ -958,8 +995,7 @@ with tab_resultados:
                 datos_paciente[f"Capurro {variante_capurro}"] = serializar_resultado(resultado_capurro)
 
             # Valores efectivos: solo entra al motor de alertas si la escala fue valorada
-            _spo2_ef = spo2 if respiratorio_valorado else 98
-            _fr_ef = fr if respiratorio_valorado else 18
+            _spo2_ef = spo2 if respiratorio_valorado else None
             _eva_ef = eva_dolor if eva_valorado else 0
             _braden_ef = puntaje_braden if braden_valorado else 23
             _glasgow_ef = glasgow_total if glasgow_valorado else 15
@@ -968,10 +1004,11 @@ with tab_resultados:
 
             # Alertas clínicas generales
             alertas_clinicas = generar_alertas_clinicas(
-                spo2=_spo2_ef, fr=_fr_ef, eva_dolor=_eva_ef,
+                spo2=_spo2_ef, fr=resultado_fr.valor_rpm, eva_dolor=_eva_ef,
                 puntaje_braden=_braden_ef, glasgow_total=_glasgow_ef,
                 puntaje_caidas=_caidas_ef, riesgo_caidas=_rcaidas_ef,
-                hallazgos_seleccionados=hallazgos_seleccionados
+                hallazgos_seleccionados=hallazgos_seleccionados,
+                resultado_fr=resultado_fr,
             )
 
             # Alerta EVA v18.1
@@ -1031,8 +1068,7 @@ with tab_resultados:
 
         # Valores efectivos recalculados (cambian si el estudiante ajusta una
         # escala después de generar el plan, sin tener que volver a generarlo)
-        _spo2_ef = spo2 if respiratorio_valorado else 98
-        _fr_ef = fr if respiratorio_valorado else 18
+        _spo2_ef = spo2 if respiratorio_valorado else None
         _eva_ef = eva_dolor if eva_valorado else 0
         _braden_ef = puntaje_braden if braden_valorado else 23
         _glasgow_ef = glasgow_total if glasgow_valorado else 15
@@ -1095,8 +1131,9 @@ with tab_resultados:
                 _glasgow_ef, interpretacion_glasgow if glasgow_valorado else "No valorado",
                 _caidas_ef, _rcaidas_ef,
                 _spo2_ef, interpretacion_spo2 if respiratorio_valorado else "No valorado",
-                _fr_ef, interpretacion_fr if respiratorio_valorado else "No valorado",
-                hallazgos_seleccionados
+                resultado_fr.valor_rpm, resultado_fr.interpretacion,
+                hallazgos_seleccionados,
+                resultado_fr=resultado_fr,
             )
             st.info(resumen_clinico)
             datos_paciente["Resumen clínico educativo"] = resumen_clinico

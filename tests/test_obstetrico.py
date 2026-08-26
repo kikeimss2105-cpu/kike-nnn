@@ -654,3 +654,81 @@ def test_tipo_invalido_es_fallo_tecnico_y_no_resultado_clinico_negativo():
         evaluar_rutas_obstetricas(
             "Obstétrico", semanas_gestacion="veinte", pa_sistolica="alta"
         )
+
+
+def test_contrato_p0_dolor_abdominal_intenso():
+    from engine.carga import cargar_catalogos
+    from engine.evidencia import (
+        EstadoValidacion,
+        FuenteEvidencia,
+        NaturalezaEvidencia,
+        evidencia_estructurada,
+        evidencias_desde_hallazgos,
+    )
+    from engine.motor import buscar_diagnosticos, calcular_puntaje_evidencias
+
+    catalogos = cargar_catalogos("data")
+    hallazgos = extraer_hallazgos_obstetricos(
+        "Obstétrico", dolor_abdominal_intenso=True,
+    )
+    evidencias = evidencias_desde_hallazgos(
+        hallazgos,
+        fuente=FuenteEvidencia.GENERADO_SISTEMA,
+        origen="valoracion_obstetrica",
+        derivada_de="datos_obstetricos_estructurados",
+    )
+    fila_dolor = catalogos.nanda[catalogos.nanda["codigo"] == "00132"].iloc[0]
+
+    assert "dolor abdominal intenso" in hallazgos
+    assert "dolor agudo" not in hallazgos
+    assert "dolor agudo" not in {e.concepto for e in evidencias}
+    puntaje, coincidencias, _ = calcular_puntaje_evidencias(evidencias, fila_dolor)
+    assert puntaje == 6
+    assert coincidencias == [
+        "[DEF] dolor abdominal intenso",
+        "[ASO] paciente obstétrica",
+        "[ASO] embarazo",
+    ]
+    assert buscar_diagnosticos(
+        "", catalogos.nanda, catalogos.enlaces, evidencias=evidencias,
+    ).empty
+
+    independientes = [
+        evidencia_estructurada(
+            concepto,
+            fuente=FuenteEvidencia.REFERIDO_ESTRUCTURADO,
+            origen="valoracion_independiente",
+            id_dato_primario=id_primario,
+            naturaleza=NaturalezaEvidencia.DATO_PRIMARIO_REFERIDO,
+            estado_validacion=EstadoValidacion.VALIDADO,
+        )
+        for concepto, id_primario in (
+            ("dolor", "dolor-referido-1"),
+            ("epigastralgia", "epigastralgia-referida-1"),
+        )
+    ]
+    resultados = buscar_diagnosticos(
+        "", catalogos.nanda, catalogos.enlaces, evidencias=independientes,
+    )
+    salida_dolor = resultados[resultados["Código"] == "00132"].iloc[0]
+    assert salida_dolor["NANDA"] == "Dolor agudo"
+    assert salida_dolor["Puntaje"] == 8
+
+    autorreferencia = evidencia_estructurada(
+        "dolor agudo",
+        fuente=FuenteEvidencia.OBSERVADO,
+        origen="prueba_autorreferencia",
+    )
+    puntaje_auto, coincidencias_auto, detalles_auto = calcular_puntaje_evidencias(
+        [autorreferencia], fila_dolor,
+    )
+    assert puntaje_auto == 0
+    assert coincidencias_auto == []
+    assert detalles_auto[0]["elegibilidad"] == "PROHIBIDA_AUTORREFERENCIA"
+
+    datos_ruta, _ = evaluar_rutas_obstetricas(
+        "Obstétrico", dolor_abdominal=True,
+    )
+    app = (Path(__file__).parents[1] / "app.py").read_text(encoding="utf-8")
+    assert "dolor agudo" in datos_ruta
+    assert app.count("hallazgos_obstetricos_ruta") == 1

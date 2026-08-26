@@ -168,7 +168,7 @@ def extraer_hallazgos_obstetricos(
     if _alcanza(temperatura, 38):
         hallazgos.append("fiebre")
     if dolor_abdominal_intenso:
-        hallazgos.extend(["dolor abdominal intenso", "dolor agudo", "prioridad alta"])
+        hallazgos.extend(["dolor abdominal intenso", "prioridad alta"])
     if contracciones_antes_termino:
         hallazgos.append("contracciones uterinas")
         if _gestacion_pretermino(semanas_gestacion):

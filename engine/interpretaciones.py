@@ -60,52 +60,18 @@ def interpretar_spo2(spo2):
 
 
 def interpretar_fr_adulto(fr):
-    if fr < 12:
-        return "Bradipnea"
-    elif fr <= 20:
-        return "Frecuencia respiratoria dentro de rango adulto esperado"
-    elif fr <= 30:
-        return "Taquipnea"
-    return "Taquipnea marcada"
+    from engine.respiratorio import evaluar_fr
+
+    resultado = evaluar_fr(fr, valorado=fr is not None, perfil="Adulto")
+    return resultado.interpretacion
 
 
 def interpretar_fr_por_tipo(fr, tipo_paciente):
     """Interpretación educativa de FR según perfil. Ajustar siempre a edad exacta y protocolo."""
-    if tipo_paciente == "Recién nacido":
-        if fr < 30:
-            return "Bradipnea para recién nacido"
-        elif fr <= 60:
-            return "Frecuencia respiratoria dentro de rango esperado para recién nacido"
-        return "Taquipnea en recién nacido"
+    from engine.respiratorio import evaluar_fr
 
-    if tipo_paciente == "Pediátrico":
-        if fr < 20:
-            return "FR baja o en vigilancia para paciente pediátrico"
-        elif fr <= 30:
-            return "Frecuencia respiratoria dentro de rango pediátrico general"
-        elif fr <= 40:
-            return "Taquipnea pediátrica"
-        return "Taquipnea pediátrica marcada"
-
-    if tipo_paciente == "Obstétrico":
-        if fr < 12:
-            return "Bradipnea"
-        elif fr <= 20:
-            return "FR dentro de rango adulto esperado en obstetricia"
-        elif fr <= 24:
-            return "FR en vigilancia obstétrica"
-        return "Taquipnea: valorar signos de alarma obstétrica"
-
-    if tipo_paciente == "Geriátrico":
-        if fr < 12:
-            return "Bradipnea"
-        elif fr <= 20:
-            return "FR dentro de rango esperado en adulto mayor"
-        elif fr <= 28:
-            return "Taquipnea en adulto mayor"
-        return "Taquipnea marcada en adulto mayor"
-
-    return interpretar_fr_adulto(fr)
+    resultado = evaluar_fr(fr, valorado=fr is not None, perfil=tipo_paciente)
+    return resultado.interpretacion
 
 
 def recomendaciones_por_tipo(tipo_paciente):

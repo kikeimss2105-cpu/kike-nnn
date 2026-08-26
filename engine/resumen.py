@@ -6,8 +6,10 @@ Lógica de negocio verificada byte-a-byte contra el comportamiento original
 mediante tests/test_golden.py antes de sustituir el código en app.py.
 """
 
+from engine.respiratorio import evaluar_fr_legacy_alertas
 
-def generar_resumen_clinico(df_resultados, puntaje_braden, riesgo_braden, eva_dolor, interpretacion_eva, glasgow_total, interpretacion_glasgow, puntaje_caidas, riesgo_caidas, spo2, interpretacion_spo2, fr, interpretacion_fr, hallazgos):
+
+def generar_resumen_clinico(df_resultados, puntaje_braden, riesgo_braden, eva_dolor, interpretacion_eva, glasgow_total, interpretacion_glasgow, puntaje_caidas, riesgo_caidas, spo2, interpretacion_spo2, fr, interpretacion_fr, hallazgos, resultado_fr=None):
     if df_resultados.empty:
         return "No se encontraron diagnósticos suficientes. Se requiere valoración clínica completa."
 
@@ -34,12 +36,16 @@ def generar_resumen_clinico(df_resultados, puntaje_braden, riesgo_braden, eva_do
     if riesgo_caidas != "No valorado":
         lineas.append(f"Riesgo de caídas: {puntaje_caidas} puntos, interpretación: {riesgo_caidas}.")
 
-    if interpretacion_spo2 != "No valorado" and interpretacion_fr != "No valorado":
-        lineas.append(f"Respiratorio: SpO₂ {spo2}%, {interpretacion_spo2}; FR {fr} rpm, {interpretacion_fr}.")
+    fr_valorada = resultado_fr is not None and resultado_fr.valorado and resultado_fr.valor_rpm is not None
+    fr_resumen = resultado_fr.valor_rpm if fr_valorada else fr
+    interpretacion_fr_resumen = resultado_fr.interpretacion if fr_valorada else interpretacion_fr
+
+    if interpretacion_spo2 != "No valorado" and interpretacion_fr_resumen not in {None, "No valorado"}:
+        lineas.append(f"Respiratorio: SpO₂ {spo2}%, {interpretacion_spo2}; FR {fr_resumen} rpm, {interpretacion_fr_resumen}.")
     elif interpretacion_spo2 != "No valorado":
         lineas.append(f"Respiratorio: SpO₂ {spo2}%, {interpretacion_spo2}.")
-    elif interpretacion_fr != "No valorado":
-        lineas.append(f"Respiratorio: FR {fr} rpm, {interpretacion_fr}.")
+    elif interpretacion_fr_resumen not in {None, "No valorado"}:
+        lineas.append(f"Respiratorio: FR {fr_resumen} rpm, {interpretacion_fr_resumen}.")
 
     if "embarazo" in hallazgos or "paciente obstétrica" in hallazgos:
         lineas.append("Obstétrico: vigilar presión arterial, cefalea, fosfenos, acúfenos, edema, sangrado, salida de líquido, fiebre, dolor abdominal y movimientos fetales según protocolo.")
@@ -88,18 +94,20 @@ def generar_alertas_clinicas(
     glasgow_total,
     puntaje_caidas,
     riesgo_caidas,
-    hallazgos_seleccionados
+    hallazgos_seleccionados,
+    *,
+    resultado_fr=None,
 ):
     alertas = []
 
-    if spo2 <= 90:
+    if spo2 is not None and spo2 <= 90:
         alertas.append({
             "Nivel": "Alta",
             "Área": "Respiratorio",
             "Alerta": f"SpO₂ {spo2}%: saturación críticamente baja.",
             "Acción sugerida": "Valorar dificultad respiratoria, coloración, trabajo respiratorio y notificar según protocolo institucional."
         })
-    elif spo2 <= 93:
+    elif spo2 is not None and spo2 <= 93:
         alertas.append({
             "Nivel": "Media",
             "Área": "Respiratorio",
@@ -107,19 +115,15 @@ def generar_alertas_clinicas(
             "Acción sugerida": "Vigilar tendencia, síntomas respiratorios y respuesta a intervenciones indicadas."
         })
 
-    if fr > 30:
+    resultado_fr = resultado_fr or evaluar_fr_legacy_alertas(fr)
+    if resultado_fr.alerta is not None:
         alertas.append({
-            "Nivel": "Alta",
+            "Nivel": resultado_fr.alerta.nivel,
             "Área": "Respiratorio",
-            "Alerta": f"FR {fr} rpm: taquipnea marcada.",
-            "Acción sugerida": "Valorar trabajo respiratorio, fatiga, uso de músculos accesorios y signos de deterioro."
-        })
-    elif fr > 20:
-        alertas.append({
-            "Nivel": "Media",
-            "Área": "Respiratorio",
-            "Alerta": f"FR {fr} rpm: taquipnea.",
-            "Acción sugerida": "Vigilar patrón respiratorio, disnea y evolución clínica."
+            "Alerta": resultado_fr.alerta.mensaje,
+            "Acción sugerida": resultado_fr.alerta.accion_sugerida,
+            "Dato primario FR": resultado_fr.id_dato_primario,
+            "Regla FR": resultado_fr.regla_id,
         })
 
     if glasgow_total <= 8:
