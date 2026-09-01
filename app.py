@@ -18,7 +18,7 @@ from engine.evidencia import (
 )
 from engine.parser_negaciones import conceptos_catalogo, etiquetas_nanda, parsear_texto_libre
 from engine.interpretaciones import (
-    interpretar_braden, interpretar_eva, interpretar_glasgow,
+    interpretar_braden, interpretar_eva,
     interpretar_riesgo_caidas, interpretar_spo2,
     recomendaciones_por_tipo, interpretar_pa_obstetrica,
 )
@@ -32,6 +32,15 @@ from engine.resumen import generar_resumen_clinico, generar_alertas_clinicas, al
 from engine.gordon import cargar_patrones_gordon, hallazgos_desde_respuestas
 from engine.texto import consolidar_hallazgos
 from engine.respiratorio import evaluar_fr, evidencias_desde_resultado_fr, evidencias_desde_spo2
+from engine.glasgow import (
+    OPCIONES_MOTORA,
+    OPCIONES_OCULAR,
+    OPCIONES_VERBAL,
+    actualizar_datos_paciente_glasgow,
+    evaluar_glasgow,
+    resolver_id_valoracion,
+    sincronizar_alertas_glasgow,
+)
 from engine.neonatal import (
     calcular_apgar,
     calcular_capurro_a,
@@ -513,29 +522,44 @@ with tab_braden:
     with col_g1:
         glasgow_ocular = st.selectbox(
             "Respuesta ocular", [1, 2, 3, 4], index=3,
-            format_func=lambda x: {1: "1 - No abre", 2: "2 - Al dolor",
-                                    3: "3 - A la voz", 4: "4 - Espontánea"}[x]
+            format_func=lambda x: f"{x} - {OPCIONES_OCULAR[x]}",
+            disabled=not glasgow_valorado,
         )
 
     with col_g2:
         glasgow_verbal = st.selectbox(
             "Respuesta verbal", [1, 2, 3, 4, 5], index=4,
-            format_func=lambda x: {1: "1 - Sin respuesta", 2: "2 - Sonidos incomprensibles",
-                                    3: "3 - Palabras inapropiadas", 4: "4 - Confuso",
-                                    5: "5 - Orientado"}[x]
+            format_func=lambda x: f"{x} - {OPCIONES_VERBAL[x]}",
+            disabled=not glasgow_valorado,
         )
 
     with col_g3:
         glasgow_motora = st.selectbox(
             "Respuesta motora", [1, 2, 3, 4, 5, 6], index=5,
-            format_func=lambda x: {1: "1 - Sin respuesta", 2: "2 - Extensión anormal",
-                                    3: "3 - Flexión anormal", 4: "4 - Retira al dolor",
-                                    5: "5 - Localiza dolor", 6: "6 - Obedece órdenes"}[x]
+            format_func=lambda x: f"{x} - {OPCIONES_MOTORA[x]}",
+            disabled=not glasgow_valorado,
         )
 
-    glasgow_total = glasgow_ocular + glasgow_verbal + glasgow_motora
-    interpretacion_glasgow = interpretar_glasgow(glasgow_total)
-    st.info(f"Glasgow: {glasgow_total}/15 | {interpretacion_glasgow}")
+    glasgow_valorado_previo = st.session_state.get("glasgow_valorado_previo", False)
+    st.session_state.glasgow_id_valoracion = resolver_id_valoracion(
+        valorado_actual=glasgow_valorado,
+        valorado_previo=glasgow_valorado_previo,
+        id_actual=st.session_state.get("glasgow_id_valoracion"),
+    )
+    st.session_state.glasgow_valorado_previo = glasgow_valorado
+    resultado_glasgow = evaluar_glasgow(
+        glasgow_ocular,
+        glasgow_verbal,
+        glasgow_motora,
+        valorado=glasgow_valorado,
+        id_valoracion=st.session_state.get("glasgow_id_valoracion"),
+    )
+    glasgow_total = resultado_glasgow.total
+    interpretacion_glasgow = resultado_glasgow.interpretacion
+    if resultado_glasgow.valorado:
+        st.info(f"Glasgow: {glasgow_total}/15 | {interpretacion_glasgow}")
+    else:
+        st.info("Glasgow: No valorado")
     st.markdown("**Guía Glasgow:** 13-15 leve/conservado · 9-12 moderado · ≤8 grave")
 
     st.subheader("Tamizaje educativo de riesgo de caídas")
@@ -559,8 +583,7 @@ with tab_braden:
         (2 if caida_previa else 0) + (2 if marcha_alterada else 0) +
         (1 if ayuda_deambulacion else 0) + (1 if mareo_vertigo else 0) +
         (1 if deficit_visual else 0) + (1 if medicamentos_riesgo else 0) +
-        (2 if confusion_caidas else 0) + (2 if hipotension_ortostatica else 0) +
-        (1 if glasgow_total < 15 else 0)
+        (2 if confusion_caidas else 0) + (2 if hipotension_ortostatica else 0)
     )
     riesgo_caidas = interpretar_riesgo_caidas(puntaje_caidas)
     st.info(f"Riesgo de caídas: {puntaje_caidas} puntos | {riesgo_caidas}")
@@ -694,16 +717,6 @@ hallazgos_eva = [
     if evidencia.concepto != "escala visual analógica del dolor"
 ]
 
-hallazgos_glasgow = []
-if glasgow_valorado:
-    if glasgow_total <= 14:
-        hallazgos_glasgow += ["confusión", "alteración del estado mental", "riesgo de caídas"]
-    if glasgow_total <= 12:
-        hallazgos_glasgow += ["nivel de conciencia disminuido", "somnolencia", "deterioro neurológico", "dificultad para caminar"]
-    if glasgow_total <= 8:
-        hallazgos_glasgow += ["riesgo de aspiración", "disminución del reflejo tusígeno", "respuesta verbal alterada",
-                               "respuesta motora alterada", "dependencia para higiene", "inmovilidad"]
-
 hallazgos_respiratorios = []
 if respiratorio_valorado:
     hallazgos_respiratorios.extend(
@@ -822,7 +835,7 @@ hallazgos_obstetricos_ruta, resumen_rutas_obstetricas = evaluar_rutas_obstetrica
 hallazgos_seleccionados = consolidar_hallazgos(
     hallazgos_seleccionados, hallazgos_obstetricos_para_nanda,
     hallazgos_perfil, hallazgos_respiratorios, hallazgos_braden, hallazgos_eva,
-    hallazgos_glasgow, hallazgos_caidas, hallazgos_gordon,
+    hallazgos_caidas, hallazgos_gordon,
 )
 
 # =========================
@@ -833,7 +846,7 @@ with st.sidebar:
     n_hallazgos = len([h for h, v in checkboxes_valoracion.items() if v])
     n_alertas_prev = 0
     alerta_fr_alta = resultado_fr.alerta is not None and resultado_fr.alerta.nivel == "Alta"
-    if spo2 <= 90 or alerta_fr_alta or glasgow_total <= 8 or puntaje_braden <= 12 or puntaje_caidas >= 6:
+    if spo2 <= 90 or alerta_fr_alta or (glasgow_total is not None and glasgow_total <= 8) or puntaje_braden <= 12 or puntaje_caidas >= 6:
         n_alertas_prev += 1
     pa_obstetrica_elevada = (
         (pas is not None and pas >= 140)
@@ -933,7 +946,6 @@ with tab_resultados:
                 ))
             for origen_escala, hallazgos_escala in (
                 ("braden", hallazgos_braden),
-                ("glasgow", hallazgos_glasgow),
                 ("caidas", hallazgos_caidas),
             ):
                 evidencias_clinicas.extend(evidencias_desde_hallazgos(
@@ -977,8 +989,6 @@ with tab_resultados:
                 "Interpretación Braden": riesgo_braden if braden_valorado else "No valorado",
                 "EVA dolor": eva_dolor if eva_valorado else "No valorado",
                 "Interpretación EVA": interpretacion_eva if eva_valorado else "No valorado",
-                "Glasgow total": glasgow_total if glasgow_valorado else "No valorado",
-                "Interpretación Glasgow": interpretacion_glasgow if glasgow_valorado else "No valorado",
                 "Puntaje riesgo de caídas": puntaje_caidas if caidas_valorado else "No valorado",
                 "Interpretación riesgo de caídas": riesgo_caidas if caidas_valorado else "No valorado",
                 "Semanas de gestación": semanas_gestacion if tipo_paciente == "Obstétrico" else "No aplica",
@@ -992,6 +1002,9 @@ with tab_resultados:
                 "Hallazgos estructurados": ", ".join(hallazgos_seleccionados),
                 "Datos clínicos texto libre": sintomas,
             }
+            datos_paciente = actualizar_datos_paciente_glasgow(
+                datos_paciente, resultado_glasgow
+            )
 
             if tipo_paciente == "Recién nacido":
                 datos_paciente["APGAR"] = serializar_resultado(resultado_apgar)
@@ -1002,7 +1015,7 @@ with tab_resultados:
             _spo2_ef = spo2 if respiratorio_valorado else None
             _eva_ef = eva_dolor if eva_valorado else 0
             _braden_ef = puntaje_braden if braden_valorado else 23
-            _glasgow_ef = glasgow_total if glasgow_valorado else 15
+            _glasgow_ef = resultado_glasgow.total
             _caidas_ef = puntaje_caidas if caidas_valorado else 0
             _rcaidas_ef = riesgo_caidas if caidas_valorado else "No valorado"
 
@@ -1013,6 +1026,7 @@ with tab_resultados:
                 puntaje_caidas=_caidas_ef, riesgo_caidas=_rcaidas_ef,
                 hallazgos_seleccionados=hallazgos_seleccionados,
                 resultado_fr=resultado_fr,
+                resultado_glasgow=resultado_glasgow,
             )
 
             # Alerta EVA v18.1
@@ -1067,15 +1081,21 @@ with tab_resultados:
 
     if st.session_state.get("plan_generado"):
         df_resultados = st.session_state.df_resultados
-        datos_paciente = st.session_state.datos_paciente
-        alertas_clinicas = st.session_state.alertas_clinicas
+        datos_paciente = actualizar_datos_paciente_glasgow(
+            st.session_state.datos_paciente, resultado_glasgow
+        )
+        alertas_clinicas = sincronizar_alertas_glasgow(
+            st.session_state.alertas_clinicas, resultado_glasgow
+        )
+        st.session_state.datos_paciente = datos_paciente
+        st.session_state.alertas_clinicas = alertas_clinicas
 
         # Valores efectivos recalculados (cambian si el estudiante ajusta una
         # escala después de generar el plan, sin tener que volver a generarlo)
         _spo2_ef = spo2 if respiratorio_valorado else None
         _eva_ef = eva_dolor if eva_valorado else 0
         _braden_ef = puntaje_braden if braden_valorado else 23
-        _glasgow_ef = glasgow_total if glasgow_valorado else 15
+        _glasgow_ef = resultado_glasgow.total
         _caidas_ef = puntaje_caidas if caidas_valorado else 0
         _rcaidas_ef = riesgo_caidas if caidas_valorado else "No valorado"
 
@@ -1138,6 +1158,7 @@ with tab_resultados:
                 resultado_fr.valor_rpm, resultado_fr.interpretacion,
                 hallazgos_seleccionados,
                 resultado_fr=resultado_fr,
+                resultado_glasgow=resultado_glasgow,
             )
             st.info(resumen_clinico)
             datos_paciente["Resumen clínico educativo"] = resumen_clinico

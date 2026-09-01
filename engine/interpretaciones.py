@@ -30,13 +30,9 @@ def interpretar_eva(eva):
 
 
 def interpretar_glasgow(glasgow):
-    if glasgow <= 8:
-        return "Compromiso neurológico grave"
-    elif glasgow <= 12:
-        return "Compromiso neurológico moderado"
-    elif glasgow <= 14:
-        return "Compromiso neurológico leve"
-    return "Estado neurológico aparentemente conservado"
+    from engine.glasgow import interpretar_total_glasgow
+
+    return interpretar_total_glasgow(glasgow)
 
 
 def interpretar_riesgo_caidas(puntaje):

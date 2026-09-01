@@ -7,9 +7,10 @@ mediante tests/test_golden.py antes de sustituir el código en app.py.
 """
 
 from engine.respiratorio import evaluar_fr_legacy_alertas
+from engine.glasgow import alertas_desde_glasgow
 
 
-def generar_resumen_clinico(df_resultados, puntaje_braden, riesgo_braden, eva_dolor, interpretacion_eva, glasgow_total, interpretacion_glasgow, puntaje_caidas, riesgo_caidas, spo2, interpretacion_spo2, fr, interpretacion_fr, hallazgos, resultado_fr=None):
+def generar_resumen_clinico(df_resultados, puntaje_braden, riesgo_braden, eva_dolor, interpretacion_eva, glasgow_total, interpretacion_glasgow, puntaje_caidas, riesgo_caidas, spo2, interpretacion_spo2, fr, interpretacion_fr, hallazgos, resultado_fr=None, resultado_glasgow=None):
     if df_resultados.empty:
         return "No se encontraron diagnósticos suficientes. Se requiere valoración clínica completa."
 
@@ -30,7 +31,15 @@ def generar_resumen_clinico(df_resultados, puntaje_braden, riesgo_braden, eva_do
     if interpretacion_eva != "No valorado":
         lineas.append(f"EVA del dolor: {eva_dolor}/10, interpretación: {interpretacion_eva}.")
 
-    if interpretacion_glasgow != "No valorado":
+    if resultado_glasgow is not None:
+        if resultado_glasgow.valorado:
+            lineas.append(
+                f"Glasgow: O{resultado_glasgow.ocular.valor}, "
+                f"V{resultado_glasgow.verbal.valor}, M{resultado_glasgow.motora.valor}; "
+                f"total {resultado_glasgow.total}/15, interpretación: "
+                f"{resultado_glasgow.interpretacion}."
+            )
+    elif interpretacion_glasgow != "No valorado":
         lineas.append(f"Glasgow: {glasgow_total}/15, interpretación: {interpretacion_glasgow}.")
 
     if riesgo_caidas != "No valorado":
@@ -97,6 +106,7 @@ def generar_alertas_clinicas(
     hallazgos_seleccionados,
     *,
     resultado_fr=None,
+    resultado_glasgow=None,
 ):
     alertas = []
 
@@ -126,20 +136,25 @@ def generar_alertas_clinicas(
             "Regla FR": resultado_fr.regla_id,
         })
 
-    if glasgow_total <= 8:
-        alertas.append({
-            "Nivel": "Alta",
-            "Área": "Neurológico",
-            "Alerta": f"Glasgow {glasgow_total}/15: compromiso neurológico grave.",
-            "Acción sugerida": "Vigilar vía aérea, riesgo de aspiración, respuesta neurológica y actuar según protocolo."
-        })
-    elif glasgow_total <= 12:
-        alertas.append({
-            "Nivel": "Media",
-            "Área": "Neurológico",
-            "Alerta": f"Glasgow {glasgow_total}/15: compromiso neurológico moderado.",
-            "Acción sugerida": "Realizar vigilancia neurológica seriada y medidas de seguridad."
-        })
+    if resultado_glasgow is not None:
+        alertas.extend(alertas_desde_glasgow(resultado_glasgow))
+    elif glasgow_total is not None:
+        # Compatibilidad para consumidores Legacy; no convierte el total en
+        # evidencia NANDA ni infiere aspiración, reflejos o función.
+        if glasgow_total <= 8:
+            alertas.append({
+                "Nivel": "Alta",
+                "Área": "Neurológico",
+                "Alerta": f"Glasgow {glasgow_total}/15: compromiso neurológico grave.",
+                "Acción sugerida": "Realizar valoración neurológica seriada y actuar según protocolo institucional."
+            })
+        elif glasgow_total <= 12:
+            alertas.append({
+                "Nivel": "Media",
+                "Área": "Neurológico",
+                "Alerta": f"Glasgow {glasgow_total}/15: compromiso neurológico moderado.",
+                "Acción sugerida": "Realizar valoración neurológica seriada y actuar según protocolo institucional."
+            })
 
     if eva_dolor >= 7:
         alertas.append({
