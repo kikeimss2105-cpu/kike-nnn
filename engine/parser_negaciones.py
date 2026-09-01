@@ -103,13 +103,24 @@ def _es_excepcion_positiva(texto_segmento: str, inicio_concepto: int) -> bool:
     return any(re.search(patron, prefijo) for patron in EXCEPCIONES_POSITIVAS)
 
 
-def parsear_texto_libre(texto, conceptos, *, origen="texto_libre") -> ResultadoParsing:
+def parsear_texto_libre(
+    texto,
+    conceptos,
+    *,
+    origen="texto_libre",
+    conclusiones_diagnosticas=(),
+) -> ResultadoParsing:
     """Extrae menciones catalogadas con polaridad, fuente y span original."""
     if texto is None or not str(texto).strip():
         return ResultadoParsing(())
 
     original = str(texto)
     normalizado = normalizar_texto(original)
+    etiquetas_nanda = {
+        normalizar_texto(etiqueta)
+        for etiqueta in conclusiones_diagnosticas
+        if normalizar_texto(etiqueta)
+    }
     evidencias = []
     try:
         for clausula in _SEPARADOR_FUERTE.finditer(normalizado):
@@ -142,6 +153,7 @@ def parsear_texto_libre(texto, conceptos, *, origen="texto_libre") -> ResultadoP
 
                     inicio_global = clausula.start() + inicio_segmento + inicio
                     fin_global = clausula.start() + inicio_segmento + fin
+                    es_conclusion = concepto in etiquetas_nanda
                     evidencias.append(EvidenciaClinica(
                         concepto=concepto,
                         texto_original=original[inicio_global:fin_global],
@@ -151,9 +163,17 @@ def parsear_texto_libre(texto, conceptos, *, origen="texto_libre") -> ResultadoP
                         origen=origen,
                         inicio=inicio_global,
                         fin=fin_global,
-                        naturaleza=NaturalezaEvidencia.DATO_PRIMARIO_REFERIDO,
+                        naturaleza=(
+                            NaturalezaEvidencia.CONCLUSION_DIAGNOSTICA
+                            if es_conclusion
+                            else NaturalezaEvidencia.DATO_PRIMARIO_REFERIDO
+                        ),
                         estado_validacion=EstadoValidacion.VALIDADO,
-                        elegibilidad=ElegibilidadEvidencia.PUNTUABLE,
+                        elegibilidad=(
+                            ElegibilidadEvidencia.NO_PUNTUABLE
+                            if es_conclusion
+                            else ElegibilidadEvidencia.PUNTUABLE
+                        ),
                     ))
         return ResultadoParsing(tuple(evidencias))
     except Exception:
@@ -170,3 +190,8 @@ def conceptos_catalogo(nanda_df) -> list[str]:
         for columna in ("caracteristicas", "relacionados", "asociados"):
             conceptos.extend(separar_lista(fila[columna]))
     return list(dict.fromkeys(conceptos))
+
+
+def etiquetas_nanda(nanda_df) -> list[str]:
+    """Devuelve las conclusiones NANDA para impedir que se usen como datos."""
+    return [str(valor) for valor in nanda_df["nanda"].tolist() if str(valor).strip()]

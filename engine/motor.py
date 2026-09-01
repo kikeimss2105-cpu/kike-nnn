@@ -7,8 +7,12 @@ mediante tests/test_golden.py antes de sustituir el código en app.py.
 """
 
 import pandas as pd
-from engine.evidencia import ElegibilidadEvidencia, PolaridadEvidencia
-from engine.parser_negaciones import conceptos_catalogo, parsear_texto_libre
+from engine.evidencia import (
+    ElegibilidadEvidencia,
+    NaturalezaEvidencia,
+    PolaridadEvidencia,
+)
+from engine.parser_negaciones import conceptos_catalogo, etiquetas_nanda, parsear_texto_libre
 from engine.texto import normalizar_texto, separar_lista
 
 
@@ -41,6 +45,7 @@ def calcular_puntaje(texto_clinico, fila):
         texto_clinico,
         vocabulario,
         origen="calcular_puntaje_legacy",
+        conclusiones_diagnosticas=[str(fila.get("nanda", ""))],
     )
     puntaje, coincidencias, _detalles = calcular_puntaje_evidencias(
         parsing.evidencias, fila
@@ -78,7 +83,22 @@ def calcular_puntaje_evidencias(evidencias, fila):
     ]
     por_concepto = {}
     for evidencia in evidencias:
-        if evidencia.puntuable and normalizar_texto(evidencia.concepto) != nombre_nanda:
+        # Defensa en profundidad I21-I28: el motor no confía únicamente en la
+        # elegibilidad declarada por el adaptador.
+        naturaleza = _valor_enum(evidencia.naturaleza)
+        naturaleza_insegura = naturaleza in {
+            NaturalezaEvidencia.LEGACY_NO_CLASIFICADO.value,
+            NaturalezaEvidencia.CONTEXTO.value,
+            NaturalezaEvidencia.INTERPRETACION.value,
+            NaturalezaEvidencia.ALERTA.value,
+            NaturalezaEvidencia.SALIDA_SISTEMA.value,
+            NaturalezaEvidencia.CONCLUSION_DIAGNOSTICA.value,
+        }
+        if (
+            evidencia.puntuable
+            and not naturaleza_insegura
+            and normalizar_texto(evidencia.concepto) != nombre_nanda
+        ):
             por_concepto.setdefault(normalizar_texto(evidencia.concepto), []).append(evidencia)
 
     grupos = (
@@ -156,7 +176,10 @@ def buscar_diagnosticos(
     estado_parsing = "NO_APLICA"
     if evidencias is None:
         parsing = parsear_texto_libre(
-            texto_clinico, conceptos_catalogo(nanda_df), origen="api_legacy"
+            texto_clinico,
+            conceptos_catalogo(nanda_df),
+            origen="api_legacy",
+            conclusiones_diagnosticas=etiquetas_nanda(nanda_df),
         )
         evidencias = list(parsing.evidencias)
         estado_parsing = parsing.estado

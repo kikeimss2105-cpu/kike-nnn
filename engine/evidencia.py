@@ -38,6 +38,7 @@ class NaturalezaEvidencia(str, Enum):
     CONTEXTO = "CONTEXTO"
     INTERPRETACION = "INTERPRETACION"
     ALERTA = "ALERTA"
+    SALIDA_SISTEMA = "SALIDA_SISTEMA"
     CONCLUSION_DIAGNOSTICA = "CONCLUSION_DIAGNOSTICA"
     LEGACY_NO_CLASIFICADO = "LEGACY_NO_CLASIFICADO"
 
@@ -73,10 +74,11 @@ class EvidenciaClinica:
 
     @property
     def puntuable(self) -> bool:
+        fuente = getattr(self.fuente, "value", self.fuente)
         naturaleza = getattr(self.naturaleza, "value", self.naturaleza)
         estado_validacion = getattr(self.estado_validacion, "value", self.estado_validacion)
         elegibilidad = getattr(self.elegibilidad, "value", self.elegibilidad)
-        return (
+        base_valida = (
             str(self.polaridad) in {
                 PolaridadEvidencia.POSITIVA.value,
                 str(PolaridadEvidencia.POSITIVA),
@@ -91,13 +93,44 @@ class EvidenciaClinica:
                 EstadoValidacion.RETIRADO.value,
             }
             and naturaleza not in {
-                NaturalezaEvidencia.DERIVACION_DETERMINISTA.value,
                 NaturalezaEvidencia.CONTEXTO.value,
                 NaturalezaEvidencia.INTERPRETACION.value,
                 NaturalezaEvidencia.ALERTA.value,
+                NaturalezaEvidencia.SALIDA_SISTEMA.value,
                 NaturalezaEvidencia.CONCLUSION_DIAGNOSTICA.value,
+                NaturalezaEvidencia.LEGACY_NO_CLASIFICADO.value,
             }
         )
+        if not base_valida:
+            return False
+
+        # I24: una derivación solo puede puntuar bajo un contrato explícito:
+        # regla validada, progenitor trazable y elegibilidad PUNTUABLE.
+        if naturaleza == NaturalezaEvidencia.DERIVACION_DETERMINISTA.value:
+            return (
+                estado_validacion == EstadoValidacion.VALIDADO.value
+                and bool(self.derivada_de or self.id_dato_primario)
+                and elegibilidad == ElegibilidadEvidencia.PUNTUABLE.value
+            )
+
+        # I25: compatibilidad temporal exclusiva para datos primarios directos.
+        # Las rutas observacionales históricas aún no tienen ID por checkbox;
+        # inferencias y salidas generadas no reciben esta excepción.
+        fuentes_directas = {
+            FuenteEvidencia.MEDIDO.value,
+            FuenteEvidencia.OBSERVADO.value,
+            FuenteEvidencia.REFERIDO_ESTRUCTURADO.value,
+            FuenteEvidencia.REFERIDO_TEXTO.value,
+        }
+        naturalezas_primarias = {
+            NaturalezaEvidencia.DATO_PRIMARIO_MEDIDO.value,
+            NaturalezaEvidencia.DATO_PRIMARIO_OBSERVADO.value,
+            NaturalezaEvidencia.DATO_PRIMARIO_REFERIDO.value,
+        }
+        if naturaleza in naturalezas_primarias and fuente in fuentes_directas:
+            return True
+
+        return bool(self.id_dato_primario or self.derivada_de)
 
 
 @dataclass(frozen=True)

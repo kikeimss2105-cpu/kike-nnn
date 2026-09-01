@@ -683,12 +683,17 @@ def test_contrato_p0_dolor_abdominal_intenso():
     assert "dolor agudo" not in hallazgos
     assert "dolor agudo" not in {e.concepto for e in evidencias}
     puntaje, coincidencias, _ = calcular_puntaje_evidencias(evidencias, fila_dolor)
-    assert puntaje == 6
-    assert coincidencias == [
-        "[DEF] dolor abdominal intenso",
-        "[ASO] paciente obstétrica",
-        "[ASO] embarazo",
-    ]
+    assert all(
+        evidencia.naturaleza == NaturalezaEvidencia.LEGACY_NO_CLASIFICADO
+        and not evidencia.puntuable
+        for evidencia in evidencias
+    )
+    assert {evidencia.origen for evidencia in evidencias} == {"valoracion_obstetrica"}
+    assert {evidencia.derivada_de for evidencia in evidencias} == {
+        "datos_obstetricos_estructurados"
+    }
+    assert puntaje == 0
+    assert coincidencias == []
     assert buscar_diagnosticos(
         "", catalogos.nanda, catalogos.enlaces, evidencias=evidencias,
     ).empty

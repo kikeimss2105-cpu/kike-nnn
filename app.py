@@ -16,7 +16,7 @@ from engine.evidencia import (
     evidencias_desde_eva,
     evidencias_desde_hallazgos,
 )
-from engine.parser_negaciones import conceptos_catalogo, parsear_texto_libre
+from engine.parser_negaciones import conceptos_catalogo, etiquetas_nanda, parsear_texto_libre
 from engine.interpretaciones import (
     interpretar_braden, interpretar_eva, interpretar_glasgow,
     interpretar_riesgo_caidas, interpretar_spo2,
@@ -884,6 +884,7 @@ with tab_resultados:
             texto_clinico = f"{tipo_paciente} {dx_medico} {signos_vitales} {factores_riesgo} {sintomas} {texto_estructurado}"
 
             vocabulario_clinico = conceptos_catalogo(nanda_df)
+            conclusiones_nanda = etiquetas_nanda(nanda_df)
             evidencias_clinicas = []
             estados_parsing = []
             for origen_texto, valor_texto in (
@@ -893,7 +894,10 @@ with tab_resultados:
                 ("sintomas_texto_libre", sintomas),
             ):
                 resultado_parsing = parsear_texto_libre(
-                    valor_texto, vocabulario_clinico, origen=origen_texto
+                    valor_texto,
+                    vocabulario_clinico,
+                    origen=origen_texto,
+                    conclusiones_diagnosticas=conclusiones_nanda,
                 )
                 evidencias_clinicas.extend(resultado_parsing.evidencias)
                 estados_parsing.append(resultado_parsing.estado)

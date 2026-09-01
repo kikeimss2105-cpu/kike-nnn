@@ -4,6 +4,7 @@ from engine.carga import cargar_catalogos
 from engine.evidencia import (
     ElegibilidadEvidencia,
     FuenteEvidencia,
+    NaturalezaEvidencia,
     PolaridadEvidencia,
     evidencia_estructurada,
     evidencias_desde_eva,
@@ -173,7 +174,7 @@ def test_eva_positiva_y_dolor_negado_conservan_contradiccion():
     (["confusión", "alteración del estado mental", "nivel de conciencia disminuido", "somnolencia", "deterioro neurológico"], "no presenta confusión", "confusion"),
     (["riesgo de lesión por presión", "inmovilidad", "humedad", "piel dañada", "fricción", "cizallamiento"], "sin lesión", None),
 ])
-def test_estructurado_permanece_y_texto_negado_no_suma(hallazgos, texto, concepto_negado):
+def test_legacy_no_puntua_y_texto_negado_no_crea_contradiccion(hallazgos, texto, concepto_negado):
     estructuradas = evidencias_desde_hallazgos(
         hallazgos,
         fuente=FuenteEvidencia.INFERIDO,
@@ -184,10 +185,20 @@ def test_estructurado_permanece_y_texto_negado_no_suma(hallazgos, texto, concept
     combinado = buscar_diagnosticos(
         "", CAT.nanda, CAT.enlaces, evidencias=estructuradas + list(parsear(texto))
     )
+    assert all(
+        evidencia.naturaleza == NaturalezaEvidencia.LEGACY_NO_CLASIFICADO
+        and not evidencia.puntuable
+        for evidencia in estructuradas
+    )
     assert list(solo_estructurado.get("Código", [])) == list(combinado.get("Código", []))
     assert list(solo_estructurado.get("Puntaje", [])) == list(combinado.get("Puntaje", []))
     if concepto_negado:
-        assert concepto_negado in combinado.attrs["contradicciones"]
+        evidencia_negada = next(
+            evidencia for evidencia in parsear(texto)
+            if evidencia.concepto == concepto_negado
+        )
+        assert evidencia_negada.polaridad == PolaridadEvidencia.NEGADA
+        assert concepto_negado not in combinado.attrs["contradicciones"]
 
 
 def test_coincidencia_conserva_trazabilidad_estructurada():
@@ -199,16 +210,23 @@ def test_coincidencia_conserva_trazabilidad_estructurada():
     )
     fila_dolor = CAT.nanda[CAT.nanda["codigo"] == "00132"].iloc[0]
     puntaje, coincidencias, detalles = calcular_puntaje_evidencias(evidencias, fila_dolor)
-    detalle_dolor = next(d for d in detalles if d["termino"] == "dolor")
     detalle_autorreferencia = next(
         d for d in detalles
         if d["elegibilidad"] == ElegibilidadEvidencia.PROHIBIDA_AUTORREFERENCIA.value
     )
 
-    assert coincidencias == ["[DEF] dolor"]
-    assert puntaje == 4
+    assert {evidencia.concepto for evidencia in evidencias} == {"dolor", "dolor agudo"}
+    assert all(
+        evidencia.naturaleza == NaturalezaEvidencia.LEGACY_NO_CLASIFICADO
+        and not evidencia.puntuable
+        for evidencia in evidencias
+    )
+    assert {evidencia.fuente for evidencia in evidencias} == {FuenteEvidencia.MEDIDO}
+    assert {evidencia.origen for evidencia in evidencias} == {"eva"}
+    assert {evidencia.derivada_de for evidencia in evidencias} == {"eva_dolor"}
+    assert coincidencias == []
+    assert puntaje == 0
     assert puntaje < 8
-    assert detalle_dolor["categoria"] == "DEF"
     assert detalle_autorreferencia["termino"] == "dolor agudo"
     assert detalle_autorreferencia["categoria"] == "AUTORREFERENCIA"
     assert {d["fuente"] for d in detalles} == {"MEDIDO"}
