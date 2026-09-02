@@ -53,6 +53,55 @@ st.set_page_config(page_title="KIKE-NNN | Apoyo al razonamiento clínico", layou
 
 
 # =========================
+# ESTILO VISUAL (rediseño 2026-09-01) — solo CSS/HTML, sin tocar logica clinica
+# =========================
+def _inyectar_estilo():
+    st.markdown("""
+    <style>
+      html, body, [data-testid="stAppViewContainer"] {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      /* Chips de estado (Valorado / Sin valorar) */
+      .knn-chip {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 0.72rem; font-weight: 700; padding: 3px 10px;
+        border-radius: 999px; margin: 2px 0 12px;
+      }
+      .knn-chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+      .knn-chip.on  { color: #1b7a4c; background: #e6f4ec; }
+      .knn-chip.off { color: #5c7a82; background: #eef4f4; }
+
+      /* Resultado numerico destacado (Glasgow, Braden, EVA, caidas) */
+      .knn-resultado {
+        font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-weight: 700;
+      }
+
+      /* Botones: el primario (Generar Plan) pesa mas que los secundarios (exportar) */
+      button[kind="primary"] {
+        font-weight: 700 !important; box-shadow: 0 4px 14px -4px rgba(0,100,120,0.45) !important;
+      }
+      button[kind="secondary"] { font-weight: 600 !important; }
+
+      /* Alertas: franja de color mas visible por severidad, ademas del fondo nativo */
+      div[data-testid="stAlert"] { border-radius: 10px !important; }
+
+      /* Separacion mas clara entre subsecciones de escalas */
+      h3 { margin-top: 0.4rem !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
+
+def _chip(valorado: bool) -> str:
+    if valorado:
+        return "<span class='knn-chip on'>Valorado</span>"
+    return "<span class='knn-chip off'>Sin valorar</span>"
+
+
+_inyectar_estilo()
+
+
+# =========================
 # DISCLAIMER CLÍNICO — BLOQUEO TOTAL HASTA ACEPTACIÓN
 # =========================
 def _mostrar_disclaimer():
@@ -408,9 +457,11 @@ with tab_braden:
             else:
                 st.warning("Capurro no calculado. Faltan: " + ", ".join(resultado_capurro.datos_faltantes))
 
-    st.subheader("Módulo respiratorio avanzado")
+    st.divider()
+    st.subheader("🫁 Módulo respiratorio avanzado")
     respiratorio_valorado = st.toggle("✅ Incluir módulo respiratorio en la valoración", value=False,
                                        help="Activa esta escala solo si valoraste SpO₂ y FR en el paciente.")
+    st.markdown(_chip(respiratorio_valorado), unsafe_allow_html=True)
 
     col_r1, col_r2, col_r3 = st.columns(3)
 
@@ -453,9 +504,11 @@ with tab_braden:
     )
     st.caption("Interpretación educativa general. Ajustar a edad, patología, altitud, protocolo institucional y contexto clínico.")
 
-    st.subheader("Riesgo de lesiones por presión")
+    st.divider()
+    st.subheader("🩹 Riesgo de lesiones por presión — Braden")
     braden_valorado = st.toggle("✅ Incluir Braden en la valoración", value=False,
                                  help="Activa solo si aplicaste la escala Braden al paciente.")
+    st.markdown(_chip(braden_valorado), unsafe_allow_html=True)
 
     col_b1, col_b2 = st.columns(2)
 
@@ -501,9 +554,11 @@ with tab_braden:
 **Guía rápida Braden:** 19-23 sin riesgo · 15-18 leve · 13-14 moderado · 10-12 alto · ≤9 muy alto
 """)
 
-    st.subheader("Escala Visual Analógica del Dolor — EVA")
+    st.divider()
+    st.subheader("📈 Escala Visual Analógica del Dolor — EVA")
     eva_valorado = st.toggle("✅ Incluir EVA en la valoración", value=False,
                               help="Activa solo si valoraste el dolor con EVA. EVA 0 sin activar = no valorado.")
+    st.markdown(_chip(eva_valorado), unsafe_allow_html=True)
     eva_dolor = st.slider("Intensidad del dolor", min_value=0, max_value=10, value=0, step=1,
                           disabled=not eva_valorado)
     interpretacion_eva = interpretar_eva(eva_dolor)
@@ -514,9 +569,11 @@ with tab_braden:
         id_dato_primario="eva_dolor",
     )
 
-    st.subheader("Escala de Glasgow — Estado neurológico")
+    st.divider()
+    st.subheader("🧠 Escala de Glasgow — Estado neurológico")
     glasgow_valorado = st.toggle("✅ Incluir Glasgow en la valoración", value=False,
                                   help="Activa solo si evaluaste el estado neurológico con Glasgow.")
+    st.markdown(_chip(glasgow_valorado), unsafe_allow_html=True)
     col_g1, col_g2, col_g3 = st.columns(3)
 
     with col_g1:
@@ -562,9 +619,11 @@ with tab_braden:
         st.info("Glasgow: No valorado")
     st.markdown("**Guía Glasgow:** 13-15 leve/conservado · 9-12 moderado · ≤8 grave")
 
-    st.subheader("Tamizaje educativo de riesgo de caídas")
+    st.divider()
+    st.subheader("🚶 Tamizaje educativo de riesgo de caídas")
     caidas_valorado = st.toggle("✅ Incluir tamizaje de caídas en la valoración", value=False,
                                  help="Activa solo si realizaste el tamizaje de caídas al paciente.")
+    st.markdown(_chip(caidas_valorado), unsafe_allow_html=True)
     col_c1, col_c2 = st.columns(2)
 
     with col_c1:
