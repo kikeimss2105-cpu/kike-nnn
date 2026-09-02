@@ -21,15 +21,21 @@ Módulos integrados:
 - exportación a Excel y Word;
 - Tanner Noticing e Interpreting aislados y probados.
 
-Tanner Responding y Reflecting permanecen bloqueados hasta validación clínica y
-pedagógica humana. Un fallo del LLM se informa como fallo técnico y nunca se
-convierte en una valoración negativa del estudiante.
+Tanner Responding cuenta únicamente con dominios no farmacológicos validados
+con límites; su motor de acciones y la farmacología permanecen bloqueados.
+Reflecting tiene validación pedagógica limitada, mientras que la puntuación y
+la máquina de estados continúan bloqueadas. Un fallo del LLM se informa como
+fallo técnico y nunca se convierte en una valoración negativa del estudiante.
 
 ## Instalación de desarrollo
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate
 python -m pip install -r requirements-dev.txt
 ```
+
+En Windows PowerShell, active el entorno con `.venv\Scripts\Activate.ps1`.
 
 ## Validación obligatoria
 
@@ -37,6 +43,8 @@ python -m pip install -r requirements-dev.txt
 python3 scripts/golden_runner.py
 python -m pytest -q
 ```
+
+Ejecute ambos comandos dentro del entorno virtual activado.
 
 ## Datos activos
 

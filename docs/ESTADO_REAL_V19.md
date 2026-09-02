@@ -11,7 +11,10 @@ inventario de julio de 2026 que contenía quedó superado por el código actual.
   clínica trazable;
 - neonatal integrado con APGAR, Silverman-Andersen y Capurro A/B;
 - Tanner Noticing e Interpreting implementados y aislados;
-- Tanner Responding y Reflecting bloqueados por validación humana pendiente;
+- Tanner Responding limitado a dominios no farmacológicos validados con
+  límites; motor de acciones y farmacología bloqueados;
+- Tanner Reflecting validado pedagógicamente con límites; puntuación y máquina
+  de estados bloqueadas;
 - exportación estudiantil y docente disponible;
 - Golden y pytest son criterios obligatorios de validación.
 

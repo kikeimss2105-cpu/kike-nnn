@@ -16,6 +16,7 @@ migrations/
 *_work/
 *_backup*/
 _backup_data/
+backup_PRE_AUDIT_*.tar.gz
 
 # Sistema
 .DS_Store

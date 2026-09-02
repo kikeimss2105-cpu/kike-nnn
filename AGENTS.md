@@ -78,3 +78,5 @@ Los comandos de validación obligatorios actuales son:
 python3 scripts/golden_runner.py
 python -m pytest -q
 ```
+
+Ambos comandos deben ejecutarse dentro del entorno virtual del proyecto.
