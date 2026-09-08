@@ -25,6 +25,7 @@ NEGADORES_DIRECTOS = (
     "no se observa",
     "no presenta",
     "no manifiesta",
+    "no tiene",
     "ausencia de",
     "niega",
     "sin",
@@ -95,12 +96,22 @@ def _ultimo_marcador(prefijo: str):
             marcadores.append((match.start(), "NO_CONFIABLE"))
     for match in _REINICIO_POSITIVO.finditer(prefijo):
         marcadores.append((match.start(), "POSITIVA"))
+    for patron in EXCEPCIONES_POSITIVAS:
+        for match in re.finditer(patron, prefijo):
+            # La excepción prevalece sobre su propio «sin/no», pero no sobre
+            # una negación posterior referida a otra mención.
+            marcadores.append((match.end() - 1, "POSITIVA"))
     return max(marcadores, default=None, key=lambda x: x[0])
 
 
-def _es_excepcion_positiva(texto_segmento: str, inicio_concepto: int) -> bool:
-    prefijo = texto_segmento[:inicio_concepto]
-    return any(re.search(patron, prefijo) for patron in EXCEPCIONES_POSITIVAS)
+def _negacion_fuera_de_contrato(prefijo: str) -> bool:
+    """No presupone positividad ante operadores negativos sin alcance conocido."""
+    restante = prefijo
+    for patron in EXCEPCIONES_POSITIVAS:
+        restante = re.sub(patron, " ", restante)
+    for marcador in (*NEGADORES_DIRECTOS, *MARCADORES_NO_CONFIABLES):
+        restante = patron_termino(marcador).sub(" ", restante)
+    return bool(re.search(r"\b(?:no|ausente|ausentes)\b", restante))
 
 
 def parsear_texto_libre(
@@ -132,7 +143,8 @@ def parsear_texto_libre(
             for indice in range(len(cortes) - 1):
                 inicio_segmento, fin_segmento = cortes[indice], cortes[indice + 1]
                 segmento = texto_clausula[inicio_segmento:fin_segmento]
-                for inicio, fin, concepto in _menciones_no_superpuestas(segmento, conceptos):
+                menciones = _menciones_no_superpuestas(segmento, conceptos)
+                for posicion, (inicio, fin, concepto) in enumerate(menciones):
                     marcador = _ultimo_marcador(segmento[:inicio])
                     polaridad = PolaridadEvidencia.POSITIVA
                     confiabilidad = ConfiabilidadEvidencia.CONFIABLE
@@ -147,9 +159,27 @@ def parsear_texto_libre(
                     ):
                         polaridad = PolaridadEvidencia.NO_CONFIABLE
                         confiabilidad = ConfiabilidadEvidencia.NO_CONFIABLE
-                    if _es_excepcion_positiva(segmento, inicio):
-                        polaridad = PolaridadEvidencia.POSITIVA
-                        confiabilidad = ConfiabilidadEvidencia.CONFIABLE
+                    siguiente = (
+                        menciones[posicion + 1][0]
+                        if posicion + 1 < len(menciones) else len(segmento)
+                    )
+                    sufijo = segmento[fin:siguiente]
+                    ausencia_directa = re.match(r"\s+ausente\b", sufijo)
+                    if ausencia_directa:
+                        polaridad = PolaridadEvidencia.NEGADA
+                    if (
+                        _negacion_fuera_de_contrato(segmento[:inicio])
+                        or (
+                            re.search(r"\bni\b", segmento[:inicio])
+                            and not (marcador and marcador[1] == "NEGADA")
+                        )
+                        or (
+                            not ausencia_directa
+                            and re.search(r"\b(?:ausente|ausentes)\b", sufijo)
+                        )
+                    ):
+                        polaridad = PolaridadEvidencia.NO_CONFIABLE
+                        confiabilidad = ConfiabilidadEvidencia.NO_CONFIABLE
 
                     inicio_global = clausula.start() + inicio_segmento + inicio
                     fin_global = clausula.start() + inicio_segmento + fin

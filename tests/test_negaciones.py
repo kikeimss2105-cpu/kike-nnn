@@ -246,3 +246,53 @@ def test_fallo_parser_es_no_confiable_y_no_genera_evidencia():
     resultado = parsear_texto_libre("dolor", ConceptosRotos())
     assert resultado.estado == "PARSING_NO_CONFIABLE"
     assert resultado.evidencias == ()
+
+
+@pytest.mark.parametrize("texto", [
+    "No tiene disnea, cianosis ni hipoxia",
+    "Disnea ausente. Cianosis ausente. Hipoxia ausente.",
+])
+def test_negaciones_release_no_sustentan_diagnosticos(texto):
+    evidencias = parsear(texto)
+    assert {e.concepto for e in evidencias} == {"disnea", "cianosis", "hipoxia"}
+    assert all(e.polaridad == PolaridadEvidencia.NEGADA for e in evidencias)
+    assert all(not e.puntuable for e in evidencias)
+    for _, fila in CAT.nanda.iterrows():
+        assert calcular_puntaje_evidencias(evidencias, fila)[:2] == (0, [])
+        assert calcular_puntaje(texto, fila) == (0, [])
+    assert buscar_diagnosticos(texto, CAT.nanda, CAT.enlaces).empty
+    assert buscar_diagnosticos("", CAT.nanda, CAT.enlaces, evidencias=evidencias).empty
+
+
+@pytest.mark.parametrize("texto", [
+    "Tiene disnea, cianosis e hipoxia",
+    "Disnea presente. Cianosis presente. Hipoxia presente.",
+])
+def test_equivalentes_positivos_release_conservan_sugerencias(texto):
+    evidencias = parsear(texto)
+    assert {e.concepto for e in evidencias} == {"disnea", "cianosis", "hipoxia"}
+    assert all(e.polaridad == PolaridadEvidencia.POSITIVA and e.puntuable for e in evidencias)
+    assert not buscar_diagnosticos(texto, CAT.nanda, CAT.enlaces).empty
+    assert not buscar_diagnosticos("", CAT.nanda, CAT.enlaces, evidencias=evidencias).empty
+
+
+@pytest.mark.parametrize("texto,concepto", [
+    ("No se puede confirmar disnea", "disnea"),
+    ("Disnea no ausente", "disnea"),
+    ("No se descarta disnea", "disnea"),
+    ("Ni disnea", "disnea"),
+])
+def test_negacion_de_alcance_inseguro_no_aporta_evidencia(texto, concepto):
+    evidencia = evidencia_por_concepto(texto, concepto)
+    assert evidencia.polaridad == PolaridadEvidencia.NO_CONFIABLE
+    assert not evidencia.puntuable
+
+
+@pytest.mark.parametrize("texto,polaridades", [
+    ("No tiene disnea, pero presenta cianosis", {"disnea": "NEGADA", "cianosis": "POSITIVA"}),
+    ("Disnea ausente. Presenta cianosis", {"disnea": "NEGADA", "cianosis": "POSITIVA"}),
+    ("Sin mejoría del dolor, no tiene disnea", {"dolor": "POSITIVA", "disnea": "NEGADA"}),
+    ("No controla el dolor, cianosis ausente", {"dolor": "POSITIVA", "cianosis": "NEGADA"}),
+])
+def test_nuevas_negaciones_respetan_positivos_y_excepciones(texto, polaridades):
+    assert {e.concepto: e.polaridad.value for e in parsear(texto)} == polaridades

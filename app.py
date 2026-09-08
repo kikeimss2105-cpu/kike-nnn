@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from uuid import uuid4
 from utils.exportadores import generar_excel, generar_word, generar_word_docente
 from engine.docente import analizar_sesion
 
@@ -516,40 +517,43 @@ with tab_braden:
         braden_sensorial = st.selectbox(
             "Percepción sensorial", [1, 2, 3, 4], index=3,
             format_func=lambda x: {1: "1 - Completamente limitada", 2: "2 - Muy limitada",
-                                    3: "3 - Ligeramente limitada", 4: "4 - Sin limitación"}[x]
+                                    3: "3 - Ligeramente limitada", 4: "4 - Sin limitación"}[x], disabled=not braden_valorado
         )
         braden_humedad = st.selectbox(
             "Humedad", [1, 2, 3, 4], index=3,
             format_func=lambda x: {1: "1 - Constantemente húmeda", 2: "2 - Muy húmeda",
-                                    3: "3 - Ocasionalmente húmeda", 4: "4 - Raramente húmeda"}[x]
+                                    3: "3 - Ocasionalmente húmeda", 4: "4 - Raramente húmeda"}[x], disabled=not braden_valorado
         )
         braden_actividad = st.selectbox(
             "Actividad", [1, 2, 3, 4], index=3,
             format_func=lambda x: {1: "1 - En cama", 2: "2 - En silla",
-                                    3: "3 - Camina ocasionalmente", 4: "4 - Camina frecuentemente"}[x]
+                                    3: "3 - Camina ocasionalmente", 4: "4 - Camina frecuentemente"}[x], disabled=not braden_valorado
         )
 
     with col_b2:
         braden_movilidad = st.selectbox(
             "Movilidad", [1, 2, 3, 4], index=3,
             format_func=lambda x: {1: "1 - Completamente inmóvil", 2: "2 - Muy limitada",
-                                    3: "3 - Ligeramente limitada", 4: "4 - Sin limitaciones"}[x]
+                                    3: "3 - Ligeramente limitada", 4: "4 - Sin limitaciones"}[x], disabled=not braden_valorado
         )
         braden_nutricion = st.selectbox(
             "Nutrición", [1, 2, 3, 4], index=3,
             format_func=lambda x: {1: "1 - Muy pobre", 2: "2 - Probablemente inadecuada",
-                                    3: "3 - Adecuada", 4: "4 - Excelente"}[x]
+                                    3: "3 - Adecuada", 4: "4 - Excelente"}[x], disabled=not braden_valorado
         )
         braden_friccion = st.selectbox(
             "Fricción y cizallamiento", [1, 2, 3], index=2,
             format_func=lambda x: {1: "1 - Problema", 2: "2 - Problema potencial",
-                                    3: "3 - Sin problema aparente"}[x]
+                                    3: "3 - Sin problema aparente"}[x], disabled=not braden_valorado
         )
 
     puntaje_braden = braden_sensorial + braden_humedad + braden_actividad + braden_movilidad + braden_nutricion + braden_friccion
-    riesgo_braden = interpretar_braden(puntaje_braden)
+    riesgo_braden = interpretar_braden(puntaje_braden) if braden_valorado else "No valorado"
 
-    st.info(f"Puntaje Braden: {puntaje_braden} | Interpretación: {riesgo_braden}")
+    if braden_valorado:
+        st.info(f"Puntaje Braden: {puntaje_braden} | Interpretación: {riesgo_braden}")
+    else:
+        st.info("Braden: No valorado")
     st.markdown("""
 **Guía rápida Braden:** 19-23 sin riesgo · 15-18 leve · 13-14 moderado · 10-12 alto · ≤9 muy alto
 """)
@@ -561,8 +565,11 @@ with tab_braden:
     st.markdown(_chip(eva_valorado), unsafe_allow_html=True)
     eva_dolor = st.slider("Intensidad del dolor", min_value=0, max_value=10, value=0, step=1,
                           disabled=not eva_valorado)
-    interpretacion_eva = interpretar_eva(eva_dolor)
-    st.info(f"EVA: {eva_dolor}/10 | {interpretacion_eva}")
+    interpretacion_eva = interpretar_eva(eva_dolor) if eva_valorado else "No valorado"
+    if eva_valorado:
+        st.info(f"EVA: {eva_dolor}/10 | {interpretacion_eva}")
+    else:
+        st.info("EVA: No valorado")
     evidencias_eva_clinicas = evidencias_desde_eva(
         eva_dolor if eva_valorado else None,
         valorado=eva_valorado,
@@ -627,16 +634,16 @@ with tab_braden:
     col_c1, col_c2 = st.columns(2)
 
     with col_c1:
-        caida_previa = st.checkbox("Caída previa reciente")
-        marcha_alterada = st.checkbox("Marcha inestable o alterada")
-        ayuda_deambulacion = st.checkbox("Requiere ayuda para deambular")
-        mareo_vertigo = st.checkbox("Mareo o vértigo")
+        caida_previa = st.checkbox("Caída previa reciente", disabled=not caidas_valorado)
+        marcha_alterada = st.checkbox("Marcha inestable o alterada", disabled=not caidas_valorado)
+        ayuda_deambulacion = st.checkbox("Requiere ayuda para deambular", disabled=not caidas_valorado)
+        mareo_vertigo = st.checkbox("Mareo o vértigo", disabled=not caidas_valorado)
 
     with col_c2:
-        deficit_visual = st.checkbox("Déficit visual")
-        medicamentos_riesgo = st.checkbox("Sedantes / antihipertensivos / diuréticos u otros fármacos de riesgo")
-        confusion_caidas = st.checkbox("Confusión o desorientación")
-        hipotension_ortostatica = st.checkbox("Hipotensión ortostática o síncope")
+        deficit_visual = st.checkbox("Déficit visual", disabled=not caidas_valorado)
+        medicamentos_riesgo = st.checkbox("Sedantes / antihipertensivos / diuréticos u otros fármacos de riesgo", disabled=not caidas_valorado)
+        confusion_caidas = st.checkbox("Confusión o desorientación", disabled=not caidas_valorado)
+        hipotension_ortostatica = st.checkbox("Hipotensión ortostática o síncope", disabled=not caidas_valorado)
 
     puntaje_caidas = (
         (2 if caida_previa else 0) + (2 if marcha_alterada else 0) +
@@ -644,8 +651,11 @@ with tab_braden:
         (1 if deficit_visual else 0) + (1 if medicamentos_riesgo else 0) +
         (2 if confusion_caidas else 0) + (2 if hipotension_ortostatica else 0)
     )
-    riesgo_caidas = interpretar_riesgo_caidas(puntaje_caidas)
-    st.info(f"Riesgo de caídas: {puntaje_caidas} puntos | {riesgo_caidas}")
+    riesgo_caidas = interpretar_riesgo_caidas(puntaje_caidas) if caidas_valorado else "No valorado"
+    if caidas_valorado:
+        st.info(f"Riesgo de caídas: {puntaje_caidas} puntos | {riesgo_caidas}")
+    else:
+        st.info("Riesgo de caídas: No valorado")
     st.markdown("**Guía caídas:** 0 sin riesgo · 1-2 bajo · 3-5 moderado · ≥6 alto")
 
     # =========================
@@ -787,28 +797,29 @@ if respiratorio_valorado:
         hallazgos_respiratorios.append("requiere oxígeno suplementario")
 
 hallazgos_caidas = []
-if puntaje_caidas >= 1:
-    hallazgos_caidas.append("riesgo de caídas")
-if puntaje_caidas >= 3:
-    hallazgos_caidas += ["dificultad para caminar", "marcha inestable", "debilidad"]
-if puntaje_caidas >= 6:
-    hallazgos_caidas += ["alteración de la movilidad", "alteración del estado mental", "hospitalización"]
-if caida_previa:
-    hallazgos_caidas.append("caída previa")
-if marcha_alterada:
-    hallazgos_caidas.append("marcha inestable")
-if ayuda_deambulacion:
-    hallazgos_caidas.append("requiere ayuda para deambular")
-if mareo_vertigo:
-    hallazgos_caidas += ["mareo", "vértigo"]
-if deficit_visual:
-    hallazgos_caidas.append("déficit visual")
-if medicamentos_riesgo:
-    hallazgos_caidas.append("medicamentos de riesgo")
-if confusion_caidas:
-    hallazgos_caidas += ["confusión", "desorientación"]
-if hipotension_ortostatica:
-    hallazgos_caidas.append("hipotensión ortostática")
+if caidas_valorado:
+    if puntaje_caidas >= 1:
+        hallazgos_caidas.append("riesgo de caídas")
+    if puntaje_caidas >= 3:
+        hallazgos_caidas += ["dificultad para caminar", "marcha inestable", "debilidad"]
+    if puntaje_caidas >= 6:
+        hallazgos_caidas += ["alteración de la movilidad", "alteración del estado mental", "hospitalización"]
+    if caida_previa:
+        hallazgos_caidas.append("caída previa")
+    if marcha_alterada:
+        hallazgos_caidas.append("marcha inestable")
+    if ayuda_deambulacion:
+        hallazgos_caidas.append("requiere ayuda para deambular")
+    if mareo_vertigo:
+        hallazgos_caidas += ["mareo", "vértigo"]
+    if deficit_visual:
+        hallazgos_caidas.append("déficit visual")
+    if medicamentos_riesgo:
+        hallazgos_caidas.append("medicamentos de riesgo")
+    if confusion_caidas:
+        hallazgos_caidas += ["confusión", "desorientación"]
+    if hipotension_ortostatica:
+        hallazgos_caidas.append("hipotensión ortostática")
 
 hallazgos_obstetricos = extraer_hallazgos_obstetricos(
     tipo_paciente=tipo_paciente,
@@ -864,7 +875,7 @@ elif tipo_paciente == "Pediátrico":
     hallazgos_perfil += ["paciente pediátrico", "vigilancia por edad", "educación al cuidador"]
 
 # EVA ajuste v18.1
-if tipo_paciente == "Obstétrico" and bool(dolor_abdominal_intenso) and int(eva_dolor) == 0:
+if tipo_paciente == "Obstétrico" and bool(dolor_abdominal_intenso) and (not eva_valorado or int(eva_dolor) == 0):
     interpretacion_eva = "EVA no valorada o pendiente; dolor abdominal intenso registrado, se recomienda cuantificar dolor."
 
 # Combinar hallazgos — FIXED: pa_sistolica/cefalea mismatches corregidos
@@ -905,7 +916,10 @@ with st.sidebar:
     n_hallazgos = len([h for h, v in checkboxes_valoracion.items() if v])
     n_alertas_prev = 0
     alerta_fr_alta = resultado_fr.alerta is not None and resultado_fr.alerta.nivel == "Alta"
-    if spo2 <= 90 or alerta_fr_alta or (glasgow_total is not None and glasgow_total <= 8) or puntaje_braden <= 12 or puntaje_caidas >= 6:
+    if ((respiratorio_valorado and spo2 <= 90) or alerta_fr_alta
+            or (glasgow_total is not None and glasgow_total <= 8)
+            or (braden_valorado and puntaje_braden <= 12)
+            or (caidas_valorado and puntaje_caidas >= 6)):
         n_alertas_prev += 1
     pa_obstetrica_elevada = (
         (pas is not None and pas >= 140)
@@ -927,6 +941,54 @@ with st.sidebar:
 # =========================
 # TAB 4 — RESULTADOS Y EXPORTACIÓN
 # =========================
+
+# Entradas de la valoración que originó el plan, independientes de navegación
+# y justificaciones. Se construyen de nuevo en cada ejecución, sin alias a
+# widgets ni a los diccionarios de resultados almacenados.
+valoracion_actual = {
+    "perfil": (tipo_paciente, edad, sexo),
+    "texto": (dx_medico, signos_vitales, factores_riesgo, sintomas),
+    "hallazgos": dict(checkboxes_valoracion),
+    "gordon": dict(respuestas_gordon),
+    "respiratorio": (
+        respiratorio_valorado,
+        (spo2, fr, oxigeno_suplementario) if respiratorio_valorado else None,
+    ),
+    "braden": (
+        braden_valorado,
+        (braden_sensorial, braden_humedad, braden_actividad, braden_movilidad,
+         braden_nutricion, braden_friccion) if braden_valorado else None,
+    ),
+    "eva": (eva_valorado, eva_dolor if eva_valorado else None),
+    "glasgow": resultado_glasgow,
+    "caidas": (
+        caidas_valorado,
+        (caida_previa, marcha_alterada, ayuda_deambulacion, mareo_vertigo,
+         deficit_visual, medicamentos_riesgo, confusion_caidas,
+         hipotension_ortostatica) if caidas_valorado else None,
+    ),
+    "obstetrico": (
+        semanas_gestacion, gestas, pas, pad, temperatura, movimientos_fetales,
+        cefalea_intensa, fosfenos, acufenos, epigastralgia, edema_cara_manos,
+        convulsiones, sangrado_vaginal, salida_liquido, liquido_fetido,
+        liquido_verdoso, dolor_abdominal_intenso, contracciones_antes_termino,
+        nausea_vomito_persistente, disuria_obstetrica,
+    ) if tipo_paciente == "Obstétrico" else None,
+    "neonatal": (
+        serializar_resultado(resultado_apgar),
+        serializar_resultado(resultado_silverman),
+        serializar_resultado(resultado_capurro),
+    ) if tipo_paciente == "Recién nacido" else None,
+}
+
+if (
+    st.session_state.get("plan_generado")
+    and st.session_state.get("valoracion_generada") != valoracion_actual
+):
+    st.session_state.plan_generado = False
+    st.session_state.resultados_invalidados = True
+    for clave in ("df_resultados", "datos_paciente", "alertas_clinicas", "valoracion_generada"):
+        st.session_state.pop(clave, None)
 
 with tab_resultados:
     st.header("4. Resultados y exportación")
@@ -1089,7 +1151,7 @@ with tab_resultados:
             )
 
             # Alerta EVA v18.1
-            if tipo_paciente == "Obstétrico" and bool(dolor_abdominal_intenso) and int(eva_dolor) == 0:
+            if tipo_paciente == "Obstétrico" and bool(dolor_abdominal_intenso) and (not eva_valorado or int(eva_dolor) == 0):
                 alertas_clinicas.append({
                     "Nivel": "Media", "Área": "Dolor / EVA",
                     "Alerta": "Dolor abdominal intenso registrado, EVA en 0 o no capturada.",
@@ -1135,8 +1197,21 @@ with tab_resultados:
         st.session_state.df_resultados = df_resultados
         st.session_state.datos_paciente = datos_paciente
         st.session_state.alertas_clinicas = alertas_clinicas
-        # Nuevo plan generado: limpiamos justificaciones de un caso anterior
+        st.session_state.valoracion_generada = valoracion_actual
+        st.session_state.resultados_invalidados = False
+        # Cada generación completada abre un intento independiente, incluso
+        # con la misma valoración y los mismos códigos diagnósticos.
+        for clave in list(st.session_state):
+            if clave.startswith("justif_"):
+                del st.session_state[clave]
+        st.session_state.intento_id = uuid4().hex
         st.session_state.justificaciones = {}
+
+    if st.session_state.get("resultados_invalidados"):
+        st.warning(
+            "La valoración cambió. Los resultados anteriores dejaron de ser válidos. "
+            "Pulsa Generar Plan de Cuidados para regenerar antes de consultar o exportar resultados."
+        )
 
     if st.session_state.get("plan_generado"):
         df_resultados = st.session_state.df_resultados
@@ -1149,8 +1224,8 @@ with tab_resultados:
         st.session_state.datos_paciente = datos_paciente
         st.session_state.alertas_clinicas = alertas_clinicas
 
-        # Valores efectivos recalculados (cambian si el estudiante ajusta una
-        # escala después de generar el plan, sin tener que volver a generarlo)
+        # La comparación previa garantiza que estas entradas pertenecen a la
+        # misma valoración que los datos, sugerencias y alertas almacenados.
         _spo2_ef = spo2 if respiratorio_valorado else None
         _eva_ef = eva_dolor if eva_valorado else 0
         _braden_ef = puntaje_braden if braden_valorado else 23
@@ -1261,7 +1336,7 @@ with tab_resultados:
                 nanda_nombre = fila["NANDA"]
                 codigo_dx = fila["Código"]
                 criterios_dx = nanda_criterios.get(codigo_dx, [])
-                key_base = f"justif_{codigo_dx}"
+                key_base = f"justif_{st.session_state.intento_id}_{codigo_dx}"
 
                 with st.expander(f"🧩 {nanda_nombre} — {fila['Confianza']} ({fila['Jerarquía']})"):
                     decision = st.radio(
