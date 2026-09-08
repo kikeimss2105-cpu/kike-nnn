@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 from uuid import uuid4
 from utils.exportadores import generar_excel, generar_word, generar_word_docente
+from engine.registro_experimental import (
+    VERSION_APP, nueva_sesion, construir_registro, serializar_registro, nombre_archivo,
+)
 from engine.docente import analizar_sesion
 
 from engine.carga import cargar_catalogos
@@ -204,7 +207,41 @@ patrones_gordon = _cargar_patrones_gordon_cacheado()
 # =========================
 
 with st.sidebar:
-    st.success("KIKE-NNN v1.0.0-rc1 | Candidato técnico educativo")
+    st.success(f"KIKE-NNN v{VERSION_APP} | Candidato técnico educativo")
+    with st.expander("Registro experimental del piloto"):
+        st.caption(
+            "Usa solo casos educativos sin datos personales. El código P001 lo proporciona "
+            "el investigador; la tabla que lo vincula con personas queda fuera de KIKE-NNN. "
+            "No ingreses nombre, matrícula, correo, teléfono, dirección ni fecha de nacimiento "
+            "en ningún texto. Descarga cada intento antes de regenerar o cerrar."
+        )
+        if "experimental_sesion" not in st.session_state:
+            participante = st.text_input("Código seudónimo del participante", key="experimental_participante")
+            momento = st.selectbox("Momento experimental", ["Seleccionar", "PRE", "POST"])
+            caso = st.text_input("Código del caso (si corresponde)")
+            if st.button("Iniciar sesión experimental"):
+                try:
+                    sesion = nueva_sesion(participante, momento, caso)
+                except ValueError as exc:
+                    st.error(str(exc))
+                else:
+                    # Una identidad nueva nunca adopta resultados de una sesión anterior.
+                    for clave in list(st.session_state):
+                        if clave.startswith("justif_") or clave in {
+                            "plan_generado", "df_resultados", "datos_paciente", "alertas_clinicas",
+                            "valoracion_generada", "intento_id", "justificaciones",
+                            "resultados_invalidados", "experimental_fallo", "experimental_vinculo",
+                        }:
+                            st.session_state.pop(clave, None)
+                    st.session_state.experimental_sesion = sesion
+                    st.session_state.experimental_rerun = True
+        else:
+            sesion = st.session_state.experimental_sesion
+            st.caption(f"{sesion.participante_id} · {sesion.momento} · Caso: {sesion.caso_id or 'No aplica'}")
+            st.caption(f"Sesión: {sesion.sesion_id}")
+            if st.button("Preparar otra sesión experimental"):
+                st.session_state.pop("experimental_sesion")
+                st.session_state.experimental_rerun = True
     st.info("Rutas: hipertensiva, RPM/infección, dolor obstétrico, valoración de sangrado y bienestar fetal.")
     st.markdown("---")
     st.caption("⚕️ Herramienta educativa — no uso clínico directo")
@@ -1013,199 +1050,217 @@ with tab_resultados:
             st.markdown("**Tab 3** — Escalas (Braden, EVA, Glasgow...)")
 
     if st.button("🩺 Generar Plan de Cuidados", type="primary"):
-        with st.spinner("Analizando hallazgos y generando plan educativo..."):
-            texto_estructurado = " ".join(hallazgos_seleccionados)
-            texto_clinico = f"{tipo_paciente} {dx_medico} {signos_vitales} {factores_riesgo} {sintomas} {texto_estructurado}"
+        try:
+            with st.spinner("Analizando hallazgos y generando plan educativo..."):
+                texto_estructurado = " ".join(hallazgos_seleccionados)
+                texto_clinico = f"{tipo_paciente} {dx_medico} {signos_vitales} {factores_riesgo} {sintomas} {texto_estructurado}"
 
-            vocabulario_clinico = conceptos_catalogo(nanda_df)
-            conclusiones_nanda = etiquetas_nanda(nanda_df)
-            evidencias_clinicas = []
-            estados_parsing = []
-            for origen_texto, valor_texto in (
-                ("diagnostico_medico", dx_medico),
-                ("signos_vitales_texto", signos_vitales),
-                ("factores_riesgo_texto", factores_riesgo),
-                ("sintomas_texto_libre", sintomas),
-            ):
-                resultado_parsing = parsear_texto_libre(
-                    valor_texto,
-                    vocabulario_clinico,
-                    origen=origen_texto,
-                    conclusiones_diagnosticas=conclusiones_nanda,
-                )
-                evidencias_clinicas.extend(resultado_parsing.evidencias)
-                estados_parsing.append(resultado_parsing.estado)
+                vocabulario_clinico = conceptos_catalogo(nanda_df)
+                conclusiones_nanda = etiquetas_nanda(nanda_df)
+                evidencias_clinicas = []
+                estados_parsing = []
+                for origen_texto, valor_texto in (
+                    ("diagnostico_medico", dx_medico),
+                    ("signos_vitales_texto", signos_vitales),
+                    ("factores_riesgo_texto", factores_riesgo),
+                    ("sintomas_texto_libre", sintomas),
+                ):
+                    resultado_parsing = parsear_texto_libre(
+                        valor_texto,
+                        vocabulario_clinico,
+                        origen=origen_texto,
+                        conclusiones_diagnosticas=conclusiones_nanda,
+                    )
+                    evidencias_clinicas.extend(resultado_parsing.evidencias)
+                    estados_parsing.append(resultado_parsing.estado)
 
-            evidencias_clinicas.extend(evidencias_desde_hallazgos(
-                [h for h, v in checkboxes_valoracion.items() if v],
-                fuente=FuenteEvidencia.OBSERVADO,
-                origen="valoracion_rapida",
-                naturaleza=NaturalezaEvidencia.DATO_PRIMARIO_OBSERVADO,
-                estado_validacion=EstadoValidacion.VALIDADO,
-                elegibilidad=ElegibilidadEvidencia.PUNTUABLE,
-            ))
-            evidencias_clinicas.extend(evidencias_desde_hallazgos(
-                hallazgos_gordon,
-                fuente=FuenteEvidencia.REFERIDO_ESTRUCTURADO,
-                origen="gordon",
-                naturaleza=NaturalezaEvidencia.DATO_PRIMARIO_REFERIDO,
-                estado_validacion=EstadoValidacion.VALIDADO,
-                elegibilidad=ElegibilidadEvidencia.PUNTUABLE,
-            ))
-            evidencias_clinicas.extend(evidencias_eva_clinicas)
-            evidencias_clinicas.extend(evidencias_desde_resultado_fr(resultado_fr))
-            evidencias_clinicas.extend(evidencias_spo2_clinicas)
-            if respiratorio_valorado and oxigeno_suplementario == "Sí":
-                evidencias_clinicas.append(evidencia_estructurada(
-                    "requiere oxígeno suplementario",
+                evidencias_clinicas.extend(evidencias_desde_hallazgos(
+                    [h for h, v in checkboxes_valoracion.items() if v],
+                    fuente=FuenteEvidencia.OBSERVADO,
+                    origen="valoracion_rapida",
+                    naturaleza=NaturalezaEvidencia.DATO_PRIMARIO_OBSERVADO,
+                    estado_validacion=EstadoValidacion.VALIDADO,
+                    elegibilidad=ElegibilidadEvidencia.PUNTUABLE,
+                ))
+                evidencias_clinicas.extend(evidencias_desde_hallazgos(
+                    hallazgos_gordon,
                     fuente=FuenteEvidencia.REFERIDO_ESTRUCTURADO,
-                    origen="respiratorio.oxigeno_suplementario",
-                    id_dato_primario="oxigeno_suplementario",
+                    origen="gordon",
                     naturaleza=NaturalezaEvidencia.DATO_PRIMARIO_REFERIDO,
                     estado_validacion=EstadoValidacion.VALIDADO,
                     elegibilidad=ElegibilidadEvidencia.PUNTUABLE,
                 ))
-            for origen_escala, hallazgos_escala in (
-                ("braden", hallazgos_braden),
-                ("caidas", hallazgos_caidas),
-            ):
+                evidencias_clinicas.extend(evidencias_eva_clinicas)
+                evidencias_clinicas.extend(evidencias_desde_resultado_fr(resultado_fr))
+                evidencias_clinicas.extend(evidencias_spo2_clinicas)
+                if respiratorio_valorado and oxigeno_suplementario == "Sí":
+                    evidencias_clinicas.append(evidencia_estructurada(
+                        "requiere oxígeno suplementario",
+                        fuente=FuenteEvidencia.REFERIDO_ESTRUCTURADO,
+                        origen="respiratorio.oxigeno_suplementario",
+                        id_dato_primario="oxigeno_suplementario",
+                        naturaleza=NaturalezaEvidencia.DATO_PRIMARIO_REFERIDO,
+                        estado_validacion=EstadoValidacion.VALIDADO,
+                        elegibilidad=ElegibilidadEvidencia.PUNTUABLE,
+                    ))
+                for origen_escala, hallazgos_escala in (
+                    ("braden", hallazgos_braden),
+                    ("caidas", hallazgos_caidas),
+                ):
+                    evidencias_clinicas.extend(evidencias_desde_hallazgos(
+                        hallazgos_escala,
+                        fuente=FuenteEvidencia.INFERIDO,
+                        origen=origen_escala,
+                        derivada_de=f"escala_{origen_escala}",
+                    ))
                 evidencias_clinicas.extend(evidencias_desde_hallazgos(
-                    hallazgos_escala,
-                    fuente=FuenteEvidencia.INFERIDO,
-                    origen=origen_escala,
-                    derivada_de=f"escala_{origen_escala}",
+                    hallazgos_obstetricos_para_nanda,
+                    fuente=FuenteEvidencia.GENERADO_SISTEMA,
+                    origen="valoracion_obstetrica",
+                    derivada_de="datos_obstetricos_estructurados",
                 ))
-            evidencias_clinicas.extend(evidencias_desde_hallazgos(
-                hallazgos_obstetricos_para_nanda,
-                fuente=FuenteEvidencia.GENERADO_SISTEMA,
-                origen="valoracion_obstetrica",
-                derivada_de="datos_obstetricos_estructurados",
-            ))
-            evidencias_clinicas.extend(evidencias_desde_hallazgos(
-                hallazgos_perfil,
-                fuente=FuenteEvidencia.INFERIDO,
-                origen="perfil_paciente",
-                derivada_de="tipo_paciente",
-                naturaleza=NaturalezaEvidencia.CONTEXTO,
-                estado_validacion=EstadoValidacion.VALIDADO,
-                elegibilidad=ElegibilidadEvidencia.NO_PUNTUABLE,
-            ))
+                evidencias_clinicas.extend(evidencias_desde_hallazgos(
+                    hallazgos_perfil,
+                    fuente=FuenteEvidencia.INFERIDO,
+                    origen="perfil_paciente",
+                    derivada_de="tipo_paciente",
+                    naturaleza=NaturalezaEvidencia.CONTEXTO,
+                    estado_validacion=EstadoValidacion.VALIDADO,
+                    elegibilidad=ElegibilidadEvidencia.NO_PUNTUABLE,
+                ))
 
-            datos_paciente = {
-                "Tipo de paciente": tipo_paciente,
-                "Edad": edad,
-                "Sexo": sexo,
-                "Diagnóstico médico": dx_medico,
-                "Signos vitales": signos_vitales,
-                "Factores de riesgo": factores_riesgo,
-                "SpO2 (%)": spo2 if respiratorio_valorado else None,
-                "Interpretación SpO2": interpretacion_spo2 if respiratorio_valorado else "No valorado",
-                "Frecuencia respiratoria (rpm)": resultado_fr.valor_rpm,
-                "Interpretación FR": resultado_fr.interpretacion,
-                "Regla FR": resultado_fr.regla_id,
-                "Estado validación FR": resultado_fr.estado_validacion.value,
-                "ID dato primario FR": resultado_fr.id_dato_primario,
-                "Oxígeno suplementario": oxigeno_suplementario if respiratorio_valorado else "No valorado",
-                "Puntaje Braden": puntaje_braden if braden_valorado else "No valorado",
-                "Interpretación Braden": riesgo_braden if braden_valorado else "No valorado",
-                "EVA dolor": eva_dolor if eva_valorado else "No valorado",
-                "Interpretación EVA": interpretacion_eva if eva_valorado else "No valorado",
-                "Puntaje riesgo de caídas": puntaje_caidas if caidas_valorado else "No valorado",
-                "Interpretación riesgo de caídas": riesgo_caidas if caidas_valorado else "No valorado",
-                "Semanas de gestación": semanas_gestacion if tipo_paciente == "Obstétrico" else "No aplica",
-                "Gestas": gestas if tipo_paciente == "Obstétrico" else "No aplica",
-                "PA obstétrica (mmHg)": f"{pas_texto}/{pad_texto}" if tipo_paciente == "Obstétrico" else "No aplica",
-                "Interpretación PA obstétrica": interpretacion_pa_obstetrica,
-                "Temperatura (°C)": temperatura if tipo_paciente == "Obstétrico" else "No aplica",
-                "Movimientos fetales": movimientos_fetales if tipo_paciente == "Obstétrico" else "No aplica",
-                "Ruta obstétrica activada": resumen_rutas_obstetricas if tipo_paciente == "Obstétrico" else "No aplica",
-                "Clasificación RPM/infección": categorias_rpm if tipo_paciente == "Obstétrico" else "No aplica",
-                "Hallazgos estructurados": ", ".join(hallazgos_seleccionados),
-                "Datos clínicos texto libre": sintomas,
-            }
-            datos_paciente = actualizar_datos_paciente_glasgow(
-                datos_paciente, resultado_glasgow
-            )
+                datos_paciente = {
+                    "Tipo de paciente": tipo_paciente,
+                    "Edad": edad,
+                    "Sexo": sexo,
+                    "Diagnóstico médico": dx_medico,
+                    "Signos vitales": signos_vitales,
+                    "Factores de riesgo": factores_riesgo,
+                    "SpO2 (%)": spo2 if respiratorio_valorado else None,
+                    "Interpretación SpO2": interpretacion_spo2 if respiratorio_valorado else "No valorado",
+                    "Frecuencia respiratoria (rpm)": resultado_fr.valor_rpm,
+                    "Interpretación FR": resultado_fr.interpretacion,
+                    "Regla FR": resultado_fr.regla_id,
+                    "Estado validación FR": resultado_fr.estado_validacion.value,
+                    "ID dato primario FR": resultado_fr.id_dato_primario,
+                    "Oxígeno suplementario": oxigeno_suplementario if respiratorio_valorado else "No valorado",
+                    "Puntaje Braden": puntaje_braden if braden_valorado else "No valorado",
+                    "Interpretación Braden": riesgo_braden if braden_valorado else "No valorado",
+                    "EVA dolor": eva_dolor if eva_valorado else "No valorado",
+                    "Interpretación EVA": interpretacion_eva if eva_valorado else "No valorado",
+                    "Puntaje riesgo de caídas": puntaje_caidas if caidas_valorado else "No valorado",
+                    "Interpretación riesgo de caídas": riesgo_caidas if caidas_valorado else "No valorado",
+                    "Semanas de gestación": semanas_gestacion if tipo_paciente == "Obstétrico" else "No aplica",
+                    "Gestas": gestas if tipo_paciente == "Obstétrico" else "No aplica",
+                    "PA obstétrica (mmHg)": f"{pas_texto}/{pad_texto}" if tipo_paciente == "Obstétrico" else "No aplica",
+                    "Interpretación PA obstétrica": interpretacion_pa_obstetrica,
+                    "Temperatura (°C)": temperatura if tipo_paciente == "Obstétrico" else "No aplica",
+                    "Movimientos fetales": movimientos_fetales if tipo_paciente == "Obstétrico" else "No aplica",
+                    "Ruta obstétrica activada": resumen_rutas_obstetricas if tipo_paciente == "Obstétrico" else "No aplica",
+                    "Clasificación RPM/infección": categorias_rpm if tipo_paciente == "Obstétrico" else "No aplica",
+                    "Hallazgos estructurados": ", ".join(hallazgos_seleccionados),
+                    "Datos clínicos texto libre": sintomas,
+                }
+                datos_paciente = actualizar_datos_paciente_glasgow(
+                    datos_paciente, resultado_glasgow
+                )
 
-            if tipo_paciente == "Recién nacido":
-                datos_paciente["APGAR"] = serializar_resultado(resultado_apgar)
-                datos_paciente["Silverman-Andersen"] = serializar_resultado(resultado_silverman)
-                datos_paciente[f"Capurro {variante_capurro}"] = serializar_resultado(resultado_capurro)
+                if tipo_paciente == "Recién nacido":
+                    datos_paciente["APGAR"] = serializar_resultado(resultado_apgar)
+                    datos_paciente["Silverman-Andersen"] = serializar_resultado(resultado_silverman)
+                    datos_paciente[f"Capurro {variante_capurro}"] = serializar_resultado(resultado_capurro)
 
-            # Valores efectivos: solo entra al motor de alertas si la escala fue valorada
-            _spo2_ef = spo2 if respiratorio_valorado else None
-            _eva_ef = eva_dolor if eva_valorado else 0
-            _braden_ef = puntaje_braden if braden_valorado else 23
-            _glasgow_ef = resultado_glasgow.total
-            _caidas_ef = puntaje_caidas if caidas_valorado else 0
-            _rcaidas_ef = riesgo_caidas if caidas_valorado else "No valorado"
+                # Valores efectivos: solo entra al motor de alertas si la escala fue valorada
+                _spo2_ef = spo2 if respiratorio_valorado else None
+                _eva_ef = eva_dolor if eva_valorado else 0
+                _braden_ef = puntaje_braden if braden_valorado else 23
+                _glasgow_ef = resultado_glasgow.total
+                _caidas_ef = puntaje_caidas if caidas_valorado else 0
+                _rcaidas_ef = riesgo_caidas if caidas_valorado else "No valorado"
 
-            # Alertas clínicas generales
-            alertas_clinicas = generar_alertas_clinicas(
-                spo2=_spo2_ef, fr=resultado_fr.valor_rpm, eva_dolor=_eva_ef,
-                puntaje_braden=_braden_ef, glasgow_total=_glasgow_ef,
-                puntaje_caidas=_caidas_ef, riesgo_caidas=_rcaidas_ef,
-                hallazgos_seleccionados=hallazgos_seleccionados,
-                resultado_fr=resultado_fr,
-                resultado_glasgow=resultado_glasgow,
-            )
+                # Alertas clínicas generales
+                alertas_clinicas = generar_alertas_clinicas(
+                    spo2=_spo2_ef, fr=resultado_fr.valor_rpm, eva_dolor=_eva_ef,
+                    puntaje_braden=_braden_ef, glasgow_total=_glasgow_ef,
+                    puntaje_caidas=_caidas_ef, riesgo_caidas=_rcaidas_ef,
+                    hallazgos_seleccionados=hallazgos_seleccionados,
+                    resultado_fr=resultado_fr,
+                    resultado_glasgow=resultado_glasgow,
+                )
 
-            # Alerta EVA v18.1
-            if tipo_paciente == "Obstétrico" and bool(dolor_abdominal_intenso) and (not eva_valorado or int(eva_dolor) == 0):
-                alertas_clinicas.append({
-                    "Nivel": "Media", "Área": "Dolor / EVA",
-                    "Alerta": "Dolor abdominal intenso registrado, EVA en 0 o no capturada.",
-                    "Acción sugerida": "Cuantificar dolor con EVA u otra escala institucional."
-                })
+                # Alerta EVA v18.1
+                if tipo_paciente == "Obstétrico" and bool(dolor_abdominal_intenso) and (not eva_valorado or int(eva_dolor) == 0):
+                    alertas_clinicas.append({
+                        "Nivel": "Media", "Área": "Dolor / EVA",
+                        "Alerta": "Dolor abdominal intenso registrado, EVA en 0 o no capturada.",
+                        "Acción sugerida": "Cuantificar dolor con EVA u otra escala institucional."
+                    })
 
-            # Alertas obstétricas
-            alertas_obstetricas = generar_alertas_obstetricas(
-                tipo_paciente=tipo_paciente, semanas_gestacion=semanas_gestacion,
-                pas=pas, pad=pad, temperatura=temperatura,
-                cefalea_intensa=cefalea_intensa, fosfenos=fosfenos, acufenos=acufenos,
-                epigastralgia=epigastralgia, edema_cara_manos=edema_cara_manos,
-                convulsiones=convulsiones, sangrado_vaginal=sangrado_vaginal,
-                salida_liquido=salida_liquido, liquido_fetido=liquido_fetido,
-                liquido_verdoso=liquido_verdoso, dolor_abdominal_intenso=dolor_abdominal_intenso,
-                contracciones_antes_termino=contracciones_antes_termino,
-                movimientos_fetales=movimientos_fetales,
-                nausea_vomito_persistente=nausea_vomito_persistente,
-                disuria_obstetrica=disuria_obstetrica,
-            )
-            alertas_clinicas.extend(alertas_obstetricas)
-            datos_paciente["Alertas clínicas educativas"] = alertas_a_texto(alertas_clinicas)
+                # Alertas obstétricas
+                alertas_obstetricas = generar_alertas_obstetricas(
+                    tipo_paciente=tipo_paciente, semanas_gestacion=semanas_gestacion,
+                    pas=pas, pad=pad, temperatura=temperatura,
+                    cefalea_intensa=cefalea_intensa, fosfenos=fosfenos, acufenos=acufenos,
+                    epigastralgia=epigastralgia, edema_cara_manos=edema_cara_manos,
+                    convulsiones=convulsiones, sangrado_vaginal=sangrado_vaginal,
+                    salida_liquido=salida_liquido, liquido_fetido=liquido_fetido,
+                    liquido_verdoso=liquido_verdoso, dolor_abdominal_intenso=dolor_abdominal_intenso,
+                    contracciones_antes_termino=contracciones_antes_termino,
+                    movimientos_fetales=movimientos_fetales,
+                    nausea_vomito_persistente=nausea_vomito_persistente,
+                    disuria_obstetrica=disuria_obstetrica,
+                )
+                alertas_clinicas.extend(alertas_obstetricas)
+                datos_paciente["Alertas clínicas educativas"] = alertas_a_texto(alertas_clinicas)
 
-            # Buscar diagnósticos
-            df_resultados = buscar_diagnosticos(
-                texto_clinico,
-                nanda_df,
-                enlaces_df,
-                dato_fetal_referido=movimientos_fetales in {"Disminuidos", "Ausentes"},
-                evidencias=evidencias_clinicas,
-            )
-            df_resultados.attrs["estado_parsing"] = (
-                "PARSING_NO_CONFIABLE"
-                if "PARSING_NO_CONFIABLE" in estados_parsing
-                else "PARSING_CONFIABLE"
-            )
-            df_resultados = enriquecer_plan(df_resultados, metas_df, noc_indicadores_df, nic_actividades_df, fundamentos_df)
+                # Buscar diagnósticos
+                df_resultados = buscar_diagnosticos(
+                    texto_clinico,
+                    nanda_df,
+                    enlaces_df,
+                    dato_fetal_referido=movimientos_fetales in {"Disminuidos", "Ausentes"},
+                    evidencias=evidencias_clinicas,
+                )
+                df_resultados.attrs["estado_parsing"] = (
+                    "PARSING_NO_CONFIABLE"
+                    if "PARSING_NO_CONFIABLE" in estados_parsing
+                    else "PARSING_CONFIABLE"
+                )
+                df_resultados = enriquecer_plan(df_resultados, metas_df, noc_indicadores_df, nic_actividades_df, fundamentos_df)
 
-        # Persistimos todo en session_state: sin esto, cualquier interacción
-        # posterior (escribir una justificación, mover un toggle) reinicia
-        # st.button a False y todo este resultado desaparecía de pantalla.
-        st.session_state.plan_generado = True
-        st.session_state.df_resultados = df_resultados
-        st.session_state.datos_paciente = datos_paciente
-        st.session_state.alertas_clinicas = alertas_clinicas
-        st.session_state.valoracion_generada = valoracion_actual
-        st.session_state.resultados_invalidados = False
-        # Cada generación completada abre un intento independiente, incluso
-        # con la misma valoración y los mismos códigos diagnósticos.
-        for clave in list(st.session_state):
-            if clave.startswith("justif_"):
-                del st.session_state[clave]
-        st.session_state.intento_id = uuid4().hex
-        st.session_state.justificaciones = {}
+            # Persistimos todo en session_state: sin esto, cualquier interacción
+            # posterior (escribir una justificación, mover un toggle) reinicia
+            # st.button a False y todo este resultado desaparecía de pantalla.
+            st.session_state.plan_generado = True
+            st.session_state.df_resultados = df_resultados
+            st.session_state.datos_paciente = datos_paciente
+            st.session_state.alertas_clinicas = alertas_clinicas
+            st.session_state.valoracion_generada = valoracion_actual
+            st.session_state.resultados_invalidados = False
+            # Cada generación completada abre un intento independiente, incluso
+            # con la misma valoración y los mismos códigos diagnósticos.
+            for clave in list(st.session_state):
+                if clave.startswith("justif_"):
+                    del st.session_state[clave]
+            st.session_state.intento_id = uuid4().hex
+            st.session_state.justificaciones = {}
+            if "experimental_sesion" in st.session_state:
+                st.session_state.experimental_fallo = False
+                st.session_state.experimental_vinculo = (
+                    st.session_state.experimental_sesion.sesion_id, st.session_state.intento_id
+                )
+        except Exception:
+            if "experimental_sesion" not in st.session_state:
+                raise
+            # No conservar resultados ni respuestas anteriores tras un fallo técnico.
+            st.session_state.plan_generado = False
+            st.session_state.resultados_invalidados = False
+            for clave in ("df_resultados", "datos_paciente", "alertas_clinicas", "intento_id", "justificaciones"):
+                st.session_state.pop(clave, None)
+            st.session_state.valoracion_generada = valoracion_actual
+            st.session_state.experimental_fallo = True
+            st.session_state.experimental_vinculo = (st.session_state.experimental_sesion.sesion_id, None)
+            st.error("La generación falló. No es una valoración del estudiante. Puedes exportar el registro FALLO.")
 
     if st.session_state.get("resultados_invalidados"):
         st.warning(
@@ -1453,5 +1508,27 @@ with tab_resultados:
                         st.info(fila["Fundamentos"])
                     st.caption(f"⚠️ {fila['Nota']}")
 
+    # Independiente de df.empty: cero sugerencias también es un resultado recuperable.
+    if "experimental_sesion" in st.session_state:
+        st.subheader("Exportar registro experimental")
+        try:
+            registro = construir_registro(
+                st.session_state.experimental_sesion, st.session_state, valoracion_actual
+            )
+        except ValueError as exc:
+            st.warning(str(exc))
+        else:
+            st.caption(f"Estado de captura: {registro['estado']} · No es una calificación clínica.")
+            st.download_button(
+                "Descargar registro experimental JSON",
+                data=serializar_registro(registro),
+                file_name=nombre_archivo(registro),
+                mime="application/json",
+            )
+
     st.markdown("---")
     st.caption("KIKE-NNN v1.0.0-rc1 | Uso educativo exclusivo | Escuela de Enfermería y Obstetricia Leininger · Xalapa, Veracruz | No certificado por COFEPRIS")
+
+# Completar el render conserva los widgets de valoración al cambiar de sesión.
+if st.session_state.pop("experimental_rerun", False):
+    st.rerun()
