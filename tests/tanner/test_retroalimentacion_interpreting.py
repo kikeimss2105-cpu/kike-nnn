@@ -107,6 +107,26 @@ def test_fallo_de_evaluacion_no_se_confunde_con_omision_del_estudiante() -> None
     assert retro.conceptos_reconocidos == ()
 
 
+def test_fallo_no_muestra_omisiones_en_como_texto() -> None:
+    """Regresión: como_texto() no debe listar 'omitidos' cuando el fallo
+    fue técnico — hacerlo contradice la advertencia de que el fallo no
+    refleja el desempeño del estudiante (bug detectado 2026-09-13)."""
+
+    caso, resultado = _evaluar(
+        "texto real del estudiante",
+        RespuestaClienteLLM((), (), exitosa=False, detalle_error="Timeout de red"),
+    )
+
+    retro = generar_retroalimentacion_interpreting(caso, resultado, "texto real del estudiante")
+    texto = retro.como_texto()
+
+    assert retro.conceptos_omitidos == ()
+    assert retro.relaciones_omitidas == ()
+    assert "Conceptos no reflejados" not in texto
+    assert "Relaciones no reflejados" not in texto
+    assert "fallo técnico" in texto
+
+
 def test_retroalimentacion_completa_sin_omisiones() -> None:
     caso = cargar_caso_tanner(CASO_OBSTETRICO)
     caso, resultado = _evaluar(

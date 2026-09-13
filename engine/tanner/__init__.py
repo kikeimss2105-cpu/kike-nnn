@@ -12,7 +12,12 @@ from engine.tanner.modelos import (
     ResultadoNoticing,
 )
 from engine.tanner.noticing import evaluar_noticing
-from engine.tanner.servicio import EjecucionNoticing, ejecutar_noticing_desde_caso
+from engine.tanner.servicio import (
+    EjecucionInterpreting,
+    EjecucionNoticing,
+    ejecutar_interpreting_desde_caso,
+    ejecutar_noticing_desde_caso,
+)
 
 from engine.tanner.retroalimentacion import (
     RetroalimentacionNoticing,
@@ -47,6 +52,8 @@ __all__ = [
     "RetroalimentacionNoticing",
     "ejecutar_noticing_desde_caso",
     "EjecucionNoticing",
+    "ejecutar_interpreting_desde_caso",
+    "EjecucionInterpreting",
     "CasoTanner",
     "cargar_caso_tanner",
     "CategoriaIndicio",

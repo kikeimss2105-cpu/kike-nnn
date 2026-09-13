@@ -59,10 +59,21 @@ def generar_retroalimentacion_interpreting(
     distintas y requieren mensajes distintos.
     """
 
-    conceptos_reconocidos = tuple(_humanizar(c) for c in resultado.conceptos_reconocidos)
-    conceptos_omitidos = tuple(_humanizar(c) for c in resultado.conceptos_omitidos)
-    relaciones_reconocidas = tuple(_humanizar(r) for r in resultado.relaciones_reconocidas)
-    relaciones_omitidas = tuple(_humanizar(r) for r in resultado.relaciones_omitidas)
+    # Si la evaluación no fue confiable (fallo técnico), no se muestran
+    # listas de "omitidos": internamente interpreting.py las llena por
+    # completo como marcador de "no se pudo evaluar nada", pero mostrarlas
+    # tal cual contradice la advertencia de fallo técnico que se da al
+    # estudiante (ver test_fallo_no_muestra_omisiones_en_como_texto).
+    if resultado.evaluacion_confiable:
+        conceptos_reconocidos = tuple(_humanizar(c) for c in resultado.conceptos_reconocidos)
+        conceptos_omitidos = tuple(_humanizar(c) for c in resultado.conceptos_omitidos)
+        relaciones_reconocidas = tuple(_humanizar(r) for r in resultado.relaciones_reconocidas)
+        relaciones_omitidas = tuple(_humanizar(r) for r in resultado.relaciones_omitidas)
+    else:
+        conceptos_reconocidos = ()
+        conceptos_omitidos = ()
+        relaciones_reconocidas = ()
+        relaciones_omitidas = ()
 
     texto_vacio = not (texto_interpretacion or "").strip()
 
